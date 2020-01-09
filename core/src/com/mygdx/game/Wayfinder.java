@@ -15,7 +15,7 @@ import com.badlogic.gdx.utils.Queue;
 public class Wayfinder {
 	
 	/**
-	 * Given a playable actor and a map finds all locations they can move to in one turn
+	 * Given a character actor and a map finds all locations they can move to in one turn
 	 * based on the actor's speed, the terrain, etc.
 	 *
 	 * TODO: Make it work for non-player actors, filter out unreachable states, make efficient  
@@ -25,7 +25,7 @@ public class Wayfinder {
 	 * @return a map of locations to the amount of moves the actor will use to reach it
 	 *  		May contain some unreachable tiles (the moves left will be negative)
 	 */
-	public static Map<Vector2, Integer> getAllMoveableTiles(PlayerActor actor, MapInfo map) {
+	public static Map<Vector2, Integer> getAllMoveableTiles(CharacterActor actor, MapInfo map) {
 		Map<Vector2, Integer> checkedTiles = new HashMap<>();  // all tiles explored and the moves left after exploring
 		Queue<Vector2> tilesToCheck = new Queue<>();  // queue of tiles to explore around
 		Vector2 startingPosition = actor.getCell();

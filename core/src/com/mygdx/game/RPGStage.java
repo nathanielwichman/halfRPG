@@ -96,11 +96,9 @@ public class RPGStage extends Stage {
 	 * square they can move to this turn which will effect display and
 	 * facilitate moving the character.
 	 * 
-	 * TODO: Generalize this for enemies as well
-	 * 
 	 * @param target the playerActor whose is preparing to move
 	 */
-	private void addMoveableTiles(PlayerActor target) {
+	private void addMoveableTiles(CharacterActor target) {
 		/*
 		int speed = target.getSpeed();
 		for (int x = -speed ; x <= speed; x++) {

@@ -2,6 +2,7 @@ package com.mygdx.game;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -30,7 +31,7 @@ public class Wayfinder {
 		Queue<Vector2> tilesToCheck = new Queue<>();  // queue of tiles to explore around
 		Vector2 startingPosition = actor.getCell();
 		int actorSpeed = actor.getSpeed();
-		
+		//System.out.println(actorSpeed);
 		// setup starting position as first explored position
 		tilesToCheck.addLast(startingPosition);
 		checkedTiles.put(startingPosition, actorSpeed);
@@ -51,6 +52,19 @@ public class Wayfinder {
 			}
 		}
 	
+		Set<Vector2> blocked = map.getCharacterPositions();  // get position of
+	
+		// remove unreachable tiles or tiles blocked by other tiles
+		Iterator<Map.Entry<Vector2, Integer>> deleterator = checkedTiles.entrySet().iterator();
+		while (deleterator.hasNext()) {
+			Map.Entry<Vector2, Integer> pair = deleterator.next();
+			if (pair.getValue() < 0 || blocked.contains(pair.getKey())) {
+				//System.out.println(pair.getValue());
+				//System.out.println(blocked.contains(pair.getKey()));
+				deleterator.remove();
+			}
+		}
+		
 		return checkedTiles;
 		
 	}

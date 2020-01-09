@@ -1,5 +1,8 @@
 package com.mygdx.game;
 
+import java.util.Set;
+import java.util.HashSet;
+
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.math.Vector2;
@@ -15,19 +18,46 @@ import com.badlogic.gdx.math.Vector2;
 public class MapInfo {
 	private TiledMap tiledMap;  
 	private TileInfo[][] infoMap;  // 2D map array of tiles reflecting the tiledMap
+	private Set<CharacterActor> characters;
 	
 	/**
 	 * Generates a 2D array of tiles with all relevant game info based off a given TiledMap
 	 * @param base The TileMap being used
 	 */
 	public MapInfo(TiledMap base) {
+		characters = new HashSet<>();
 		tiledMap = base;
 		setupTiles();
 		infoMap = MapInfo.getInfoForLayer((TiledMapTileLayer) tiledMap.getLayers().get(0));
 	}
 	
 	/**
-	 * Getter
+	 * Adds an actor to the map - important for tracking collisions, etc. 
+	 * @param a the character to add
+	 * @return true if added, false if already added
+	 */
+	public boolean addCharacter(CharacterActor a) {
+		return characters.add(a);
+	}
+	
+	/**
+	 * Removes an actor from the map, i.e. if they died
+	 * @param a the actor to remove
+	 * @return true if removed, false if not found
+	 */
+	public boolean removeCharacter(CharacterActor a) {
+		return characters.remove(a);
+	}
+	
+	public Set<Vector2> getCharacterPositions() {
+		Set<Vector2> characterPositions = new HashSet<>();
+		for (CharacterActor c : characters) {
+			characterPositions.add(c.getCell());
+		}
+		return characterPositions;
+	}
+	
+	/**
 	 * @return the TiledMap this class is based off of
 	 */
 	public TiledMap getTiledMap() {

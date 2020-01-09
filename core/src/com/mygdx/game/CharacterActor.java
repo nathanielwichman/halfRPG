@@ -21,11 +21,11 @@ public class CharacterActor extends Actor {
 	 * @param form The texture to represent this character
 	 * @param name The name of this character
 	 */
-	public CharacterActor(Texture form, String name) {
+	public CharacterActor(Texture form, String name, int speed) {
 		this.texture = form;
 		this.name = name;
+		this.speed = speed;
 		this.setBounds(getX(), getY(), texture.getWidth(), texture.getHeight());
-		this.speed = 5;
 	}
 	
 	@Override

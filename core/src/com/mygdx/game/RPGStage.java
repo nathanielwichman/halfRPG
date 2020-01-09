@@ -66,12 +66,22 @@ public class RPGStage extends Stage {
 		
 		// Set up playable actors and add one called moblin
 		playerActors = new ArrayList<>();
-		PlayerActor moblin = new PlayerActor(new Texture(Gdx.files.internal("data/CharacterSprites/moblin.png")), "moblin");
+		PlayerActor moblin = new PlayerActor(new Texture(Gdx.files.internal("data/CharacterSprites/moblin.png")), "moblin", 5);
 		moblin.setPosition(128, 128);
 		moblin.setTouchable(Touchable.enabled);
 		
+		PlayerActor moblin2 = new PlayerActor(new Texture(Gdx.files.internal("data/CharacterSprites/moblin.png")), "moblin2", 5);
+		moblin2.setPosition(128, 128);
+		moblin2.setTouchable(Touchable.enabled);
+		
+		
+		mapInfo.addCharacter(moblin);
 		playerActors.add(moblin);
 		addActor(moblin);
+		
+		mapInfo.addCharacter(moblin2);
+		playerActors.add(moblin2);
+		addActor(moblin2);
 		
 		// add textures for the move-able tiles image
 		moveableTexture = new Texture(Gdx.files.internal("data/MiscSprites/moveable.png"));
@@ -128,7 +138,7 @@ public class RPGStage extends Stage {
 		
 		for (Vector2 position : checkedTiles.keySet()) {
 			if (checkedTiles.get(position) >= 0) {  // loop over all positions the player can reach this turn
-				System.out.println(position);
+				//System.out.println(position);
 				// create and setup a moveableActor at that point
 				Actor moveableActor = new Actor() {
 					private final Texture texture = moveableTexture;

@@ -11,6 +11,8 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 /**
  * An actor representing a character the player can control.
  * Holds info about the characters abilities and display.
+ * 
+ * TODO: Make this all loadable in some way
  */
 public class PlayerActor extends CharacterActor {
 	
@@ -18,7 +20,7 @@ public class PlayerActor extends CharacterActor {
 	 * @param form The texture to represent this character
 	 * @param name The name of this character
 	 */
-	public PlayerActor(Texture form, String name) {
-		super(form, name);
+	public PlayerActor(Texture form, String name, int speed) {
+		super(form, name, speed);
 	}
 }

@@ -10,4 +10,8 @@ public class EnemyActor extends CharacterActor {
 	public EnemyActor(Texture t, String name, int speed) {
 		super(t, name, speed);
 	}
+	
+	public EnemyActor(CharacterInfo c) {
+		super(c);
+	}
 }

@@ -16,6 +16,7 @@ public class TileInfo {
 	private final int speedToCross;  // amount of movement it takes to cross this tile
 	private final TiledMapTile tile;  // reference to the TiledMap tile
 	private final int tiledId;  // Id of the Tiled tile
+	private final boolean isWall;
 	
 	// Factory methods
 	private static Map<String, TileInfo> instances;  // tracks which tile's have been setup
@@ -26,9 +27,10 @@ public class TileInfo {
 	 * Initializes a new type of time, which should be done
 	 * only once per type. Name and Id must be unique.
 	 */
-	private TileInfo(String name, int speedToCross,
+	private TileInfo(String name, int speedToCross, boolean isWall,
 			TiledMapTile tile) {
 		this.name = name;
+		this.isWall = isWall;
 		this.speedToCross = speedToCross;
 		this.tile = tile;
 		this.tiledId = tile.getId();
@@ -52,10 +54,10 @@ public class TileInfo {
 	 * @param tile reference to the TileMapTile this class is describing
 	 * @return true if properly setup, false if already created
 	 */
-	public static boolean setupTile(String name, int speedToCross,
+	public static boolean setupTile(String name, int speedToCross, boolean isWall,
 						  TiledMapTile tile) {
 		if (TileInfo.instances == null || !TileInfo.instances.containsKey(name)) {
-			new TileInfo(name, speedToCross, tile);
+			new TileInfo(name, speedToCross, isWall, tile);
 			return true;
 		} else {
 			return false;
@@ -142,5 +144,9 @@ public class TileInfo {
 	 */
 	public int getTiledId() {
 		return this.tiledId;
+	}
+	
+	public boolean isWall() {
+		return this.isWall;
 	}
 }

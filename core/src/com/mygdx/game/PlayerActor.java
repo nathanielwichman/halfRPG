@@ -23,4 +23,8 @@ public class PlayerActor extends CharacterActor {
 	public PlayerActor(Texture form, String name, int speed) {
 		super(form, name, speed);
 	}
+	
+	public PlayerActor(CharacterInfo t) {
+		super(t);
+	}
 }

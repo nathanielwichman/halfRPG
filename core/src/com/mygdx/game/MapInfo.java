@@ -1,7 +1,9 @@
 package com.mygdx.game;
 
 import java.util.Set;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
@@ -49,13 +51,35 @@ public class MapInfo {
 		return characters.remove(a);
 	}
 	
-	public Set<Vector2> getCharacterPositions() {
+	public Map<Vector2, CharacterActor> getCharacters() {
+		Map<Vector2, CharacterActor> characterLocations = new HashMap<>();
+		for (CharacterActor c : characters) {
+			characterLocations.put(c.getCell(), c);
+		}
+		return characterLocations;
+	}
+	
+	public Set<Vector2> getSelectedCharacterPositions(Class type) {
 		Set<Vector2> characterPositions = new HashSet<>();
 		for (CharacterActor c : characters) {
-			characterPositions.add(c.getCell());
+			if (type.isInstance(c))
+				characterPositions.add(c.getCell());
 		}
 		return characterPositions;
 	}
+	
+	public Set<Vector2> getCharacterPositions() {
+		return getSelectedCharacterPositions(CharacterActor.class);
+	}
+	
+	public Set<Vector2> getEnemyPositions() {
+		return getSelectedCharacterPositions(EnemyActor.class);
+	}
+	
+	public Set<Vector2> getPlayerPositions() {
+		return getSelectedCharacterPositions(PlayerActor.class);
+	}
+	
 	
 	/**
 	 * @return the TiledMap this class is based off of
@@ -70,8 +94,16 @@ public class MapInfo {
 	 * TODO: Make this load from some document which defines tile info / tileId
 	 */
 	private void setupTiles() {
-		TileInfo.setupTile("floor", 1, tiledMap.getTileSets().getTile(3));
-		TileInfo.setupTile("wall", 99999, tiledMap.getTileSets().getTile(1));
+		TileInfo.setupTile("floor", 1, false, tiledMap.getTileSets().getTile(3));
+		TileInfo.setupTile("wall", 1, true, tiledMap.getTileSets().getTile(1));
+	}
+	
+	public boolean inMapBounds(Vector2 v) {
+		return (v.x >= 0 && v.x < infoMap.length) && (v.y >= 0 && v.y < infoMap[0].length);
+	}
+	
+	public Vector2 getMapSize() {
+		return new Vector2(infoMap.length, infoMap[0].length);
 	}
 	
 	/**

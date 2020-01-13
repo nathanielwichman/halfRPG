@@ -26,6 +26,9 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.mygdx.game.ActionProperties.CanMoveThrough;
+import com.mygdx.game.ActionProperties.CanSelect;
+import com.mygdx.game.ActionProperties.EffectedByTerrain;
 
 /**
  * Main class for the rpg game play, including logic and input handeling.
@@ -60,20 +63,27 @@ public class RPGStage extends Stage {
 		selected = new SelectorActor();
 		selected.setTouchable(Touchable.disabled);
 		addActor(selected);
-		
+		 
 		playerFocus = false;
 		focusedPlayer = null;
 		
 		// Set up playable actors and add one called moblin
 		playerActors = new ArrayList<>();
-		PlayerActor moblin = new PlayerActor(new Texture(Gdx.files.internal("data/CharacterSprites/moblin.png")), "moblin", 5);
+		PlayerActor moblin = new PlayerActor(CharacterInfo.getCharacterInfo("Moblin"));//new PlayerActor(new Texture(Gdx.files.internal("data/CharacterSprites/moblin.png")), "moblin", 5);
 		moblin.setPosition(128, 128);
 		moblin.setTouchable(Touchable.enabled);
 		
-		PlayerActor moblin2 = new PlayerActor(new Texture(Gdx.files.internal("data/CharacterSprites/moblin.png")), "moblin2", 5);
-		moblin2.setPosition(128, 128);
+		PlayerActor moblin2 = new PlayerActor(CharacterInfo.getCharacterInfo("Moblin"));//new PlayerActor(new Texture(Gdx.files.internal("data/CharacterSprites/moblin.png")), "moblin2", 5);
+		moblin2.setPosition(128, 64);
 		moblin2.setTouchable(Touchable.enabled);
 		
+		CharacterActor a = new EnemyActor(CharacterInfo.getCharacterInfo("SkeletonPunchingBag"));
+		//CharacterActor a = new CharacterActor(CharacterInfo.getCharacterInfo("SkeletonPunchingBag"));
+		a.setPosition(192, 64);
+		a.setTouchable(Touchable.enabled);
+		
+		mapInfo.addCharacter(a);
+		addActor(a);
 		
 		mapInfo.addCharacter(moblin);
 		playerActors.add(moblin);
@@ -82,6 +92,7 @@ public class RPGStage extends Stage {
 		mapInfo.addCharacter(moblin2);
 		playerActors.add(moblin2);
 		addActor(moblin2);
+		
 		
 		// add textures for the move-able tiles image
 		moveableTexture = new Texture(Gdx.files.internal("data/MiscSprites/moveable.png"));
@@ -134,10 +145,11 @@ public class RPGStage extends Stage {
 				//	continue;
 			*/
 		// Map of locations to speed left, note for now some may be negative (actually unreachable)
-		Map<Vector2, Integer> checkedTiles = Wayfinder.getAllMoveableTiles(target, mapInfo);
+		Set<Vector2> checkedTiles = Wayfinder.getAllSelectableTiles(target, target.getCell(), 3, mapInfo,
+				new ActionProperties(EffectedByTerrain.RESPECT_TERRAIN, CanSelect.TILE, CanMoveThrough.WALLS, CanSelect.ENEMY));   //Wayfinder.getAllMoveableTiles(target, mapInfo);
 		
-		for (Vector2 position : checkedTiles.keySet()) {
-			if (checkedTiles.get(position) >= 0) {  // loop over all positions the player can reach this turn
+		for (Vector2 position : checkedTiles) {
+			if (true) { //checkedTiles.get(position) >= 0) {  // loop over all positions the player can reach this turn
 				//System.out.println(position);
 				// create and setup a moveableActor at that point
 				Actor moveableActor = new Actor() {
@@ -190,12 +202,16 @@ public class RPGStage extends Stage {
 		Actor selected = super.hit(stageCoords.x, stageCoords.y, true); 
 		
 		if (selected instanceof PlayerActor) {  // player character hit, give them focus
-			System.out.println(((PlayerActor) selected).getCell());
+			//System.out.println(((PlayerActor) selected).getCell());
 			playerFocus = true;
 			focusedPlayer = (PlayerActor) selected;
 			clearMoveableTiles();
 			addMoveableTiles(focusedPlayer);
 			return true;
+		} else if (selected instanceof EnemyActor) {
+			if (playerFocus) {
+				
+			}
 		} else if (moveableTiles.contains(selected)) {  // movement location selected, move to that location
 			focusedPlayer.setPosition(selected.getX(), selected.getY());
 		}

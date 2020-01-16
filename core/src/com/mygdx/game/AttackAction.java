@@ -1,6 +1,8 @@
 package com.mygdx.game;
 
 import com.badlogic.gdx.graphics.Texture;
+import com.mygdx.game.ActionProperties.CanSelect;
+import com.mygdx.game.ActionProperties.EffectedByTerrain;
 
 /**
  * Contains information about an attack action a character can make.
@@ -14,15 +16,13 @@ public class AttackAction {
 	 * The type of attack, AttackType.TARGET must be used to target a 
 	 * character while AttackType.POINT can target any tile within range
 	 */
-	public static enum AttackType {
-		TARGET, POINT;
-	}
 	
-	private final String attackName;  // name of the attack
-	private final AttackType type;  // the type of attack (target or point)
-	private final int damage;  // the amouont of dmg the attack does
-	private final int range;  // the range the 
-	private Texture uiImage;   // the ui image to select the attack (if player action)
+	public final String attackName;  // name of the attack
+	public ActionProperties p;
+	//private final AttackType type;  // the type of attack (target or point)
+	public final int damage;  // the amouont of dmg the attack does
+	public final int range;  // the range the 
+	public Texture uiImage;   // the ui image to select the attack (if player action)
 	
 	/**
 	 * Initializes a new attack without an associated ui image (i.e. NPC action)
@@ -31,9 +31,9 @@ public class AttackAction {
 	 * @param damage damage done by the attack
 	 * @param range range of the attack, in tiles 
 	 */
-	public AttackAction(String name, AttackType type, int damage, int range) {
+	public AttackAction(String name, ActionProperties p, int damage, int range) {
 		this.attackName = name;
-		this.type = type;
+		this.p = p;
 		this.damage = damage;
 		this.range = range;
 		this.uiImage = null;
@@ -47,8 +47,8 @@ public class AttackAction {
 	 * @param range range of the attack, in tiles
 	 * @param t texture for the ui icon used to select this attack
 	 */
-	public AttackAction(String name, AttackType type, int damage, int range, Texture t) {
-		this(name, type, damage, range);
+	public AttackAction(String name, ActionProperties p, int damage, int range, Texture t) {
+		this(name, p, damage, range);
 		this.uiImage = t;
 	}
 	
@@ -69,9 +69,9 @@ public class AttackAction {
 	public static AttackAction getAttack(String name) {
 		switch (name) {
 			case "slash":
-				return new AttackAction("Slash", AttackType.TARGET, 2, 1);
+				return new AttackAction("Slash", new ActionProperties(CanSelect.ENEMY, EffectedByTerrain.IGNORE_TERRAIN), 2, 1);
 			default:
-				return new AttackAction("Stab", AttackType.TARGET, 2, 1);
+				return new AttackAction("Stab", new ActionProperties(CanSelect.ENEMY, EffectedByTerrain.IGNORE_TERRAIN), 2, 1);
 		}
 	}
 }

@@ -42,6 +42,8 @@ public class ActionProperties {
 		}
 	}
 	
+	
+	
 	public boolean isOneOf(Properties...properties) {
 		for (Properties p : properties) {
 			if (s.contains(p)) {

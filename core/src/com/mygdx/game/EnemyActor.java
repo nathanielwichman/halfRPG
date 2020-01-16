@@ -11,7 +11,7 @@ public class EnemyActor extends CharacterActor {
 		super(t, name, speed);
 	}
 	
-	public EnemyActor(CharacterInfo c) {
-		super(c);
+	public EnemyActor(RPGStage parent, CharacterInfo c) {
+		super(parent, c);
 	}
 }

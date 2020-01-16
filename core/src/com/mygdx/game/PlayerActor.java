@@ -24,7 +24,7 @@ public class PlayerActor extends CharacterActor {
 		super(form, name, speed);
 	}
 	
-	public PlayerActor(CharacterInfo t) {
-		super(t);
+	public PlayerActor(RPGStage parent, CharacterInfo t) {
+		super(parent, t);
 	}
 }

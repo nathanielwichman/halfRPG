@@ -15,6 +15,8 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
  * Holds info about the characters abilities and display.
  */
 public class CharacterActor extends Actor {
+	private RPGStage parent;
+	
 	private Texture texture;  // texture for this actor
 	private final String name;  // unique name for actor
 	private String className;  // type name of actor (i.e. orc), may be same as name
@@ -23,6 +25,9 @@ public class CharacterActor extends Actor {
 	
 	private int speedRemaining;  // number of moves left this turn
 	private int healthRemaining;  // health remaining
+	
+	private List<AttackAction> actions;  // actions a character can make
+	private AttackAction basicAttack; 
 	
 	/**
 	 * @param form The texture to represent this character
@@ -39,13 +44,19 @@ public class CharacterActor extends Actor {
 	 * Loads a new character actor from a CharacterInfo instance
 	 * @param i characterInfo object describing this actor
 	 */
-	public CharacterActor(CharacterInfo i) {
+	public CharacterActor(RPGStage parent, CharacterInfo i) {
+		this.parent = parent;
 		this.texture = i.t;
 		this.className = i.className;
 		this.name = i.name;
 		this.maxSpeed = i.maxSpeed;
 		this.maxHealth = i.maxHealth;
+		this.actions = i.actions;
+		this.basicAttack = i.basicAttack;
 		this.setBounds(getX(), getY(), i.t.getWidth(), i.t.getHeight());
+	
+		this.healthRemaining = this.maxHealth;
+		this.speedRemaining = this.maxSpeed;
 	}
 	
 	@Override
@@ -65,6 +76,10 @@ public class CharacterActor extends Actor {
 	 */
 	public Vector2 getCell() {
 		return new Vector2(((int) getX()) / 64, ((int) getY()) / 64);
+	}
+	
+	public AttackAction getBasicAttack() {
+		return basicAttack;
 	}
 	
 	/**
@@ -137,6 +152,15 @@ public class CharacterActor extends Actor {
 			healthRemaining = maxHealth;
 		}
 		return healthRemaining;
+	}
+	
+	public void handleAttack(AttackAction a) {
+		System.out.println(name + ": ouch! Took " + a.damage + " dmg / " + this.healthRemaining);
+		if (this.takeDamage(a.damage) == 0) {
+			System.out.println(name + ": zoinks! I'm dead");
+			parent.removeCharacter(this);
+		}
+		
 	}
 	
 }

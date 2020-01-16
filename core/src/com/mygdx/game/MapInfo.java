@@ -170,4 +170,14 @@ public class MapInfo {
 		return newMap;
 	}
 	
+	public boolean handleAttack(Vector2 location, AttackAction a) {
+		for (CharacterActor c : characters) {
+			if (c.getCell().equals(location)) {
+				c.handleAttack(a);
+				return true;
+			}
+		}
+		return false;
+	}
+	
 }

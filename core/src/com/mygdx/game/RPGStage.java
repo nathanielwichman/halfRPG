@@ -48,7 +48,8 @@ public class RPGStage extends Stage {
 	public boolean playerFocus;  // has a playable actor been focused on
 	public PlayerActor focusedPlayer;  // which playable actor is focused on (only valid if playerFocus is true)
 	Set<Actor> moveableTiles;  // saved info about display, should be changed
-
+	Set<Actor> attackableTiles;
+	
 	/**
 	 * Sets up display and logic for the map, characters, user input handling etc.
 	 * TODO: Replace moveableTiles with some sort of batching
@@ -69,15 +70,15 @@ public class RPGStage extends Stage {
 		
 		// Set up playable actors and add one called moblin
 		playerActors = new ArrayList<>();
-		PlayerActor moblin = new PlayerActor(CharacterInfo.getCharacterInfo("Moblin"));//new PlayerActor(new Texture(Gdx.files.internal("data/CharacterSprites/moblin.png")), "moblin", 5);
+		PlayerActor moblin = new PlayerActor(this, CharacterInfo.getCharacterInfo("Moblin"));//new PlayerActor(new Texture(Gdx.files.internal("data/CharacterSprites/moblin.png")), "moblin", 5);
 		moblin.setPosition(128, 128);
 		moblin.setTouchable(Touchable.enabled);
 		
-		PlayerActor moblin2 = new PlayerActor(CharacterInfo.getCharacterInfo("Moblin"));//new PlayerActor(new Texture(Gdx.files.internal("data/CharacterSprites/moblin.png")), "moblin2", 5);
+		PlayerActor moblin2 = new PlayerActor(this, CharacterInfo.getCharacterInfo("Moblin"));//new PlayerActor(new Texture(Gdx.files.internal("data/CharacterSprites/moblin.png")), "moblin2", 5);
 		moblin2.setPosition(128, 64);
 		moblin2.setTouchable(Touchable.enabled);
 		
-		CharacterActor a = new EnemyActor(CharacterInfo.getCharacterInfo("SkeletonPunchingBag"));
+		CharacterActor a = new EnemyActor(this, CharacterInfo.getCharacterInfo("SkeletonPunchingBag"));
 		//CharacterActor a = new CharacterActor(CharacterInfo.getCharacterInfo("SkeletonPunchingBag"));
 		a.setPosition(192, 64);
 		a.setTouchable(Touchable.enabled);
@@ -97,6 +98,7 @@ public class RPGStage extends Stage {
 		// add textures for the move-able tiles image
 		moveableTexture = new Texture(Gdx.files.internal("data/MiscSprites/moveable.png"));
 		moveableTiles = new HashSet<>();
+		attackableTiles = new HashSet<>();
 		//Systemom.out.println(moblin.isTouchable());
 	}
 	
@@ -109,7 +111,12 @@ public class RPGStage extends Stage {
 			tile.remove();
 			tile.clear();
 		}
+		for (Actor tile : attackableTiles) {
+			tile.remove();
+			tile.clear();
+		}
 		moveableTiles.clear();
+		attackableTiles.clear();
 	}
 	
 	/**
@@ -119,7 +126,7 @@ public class RPGStage extends Stage {
 	 * 
 	 * @param target the playerActor whose is preparing to move
 	 */
-	private void addMoveableTiles(CharacterActor target) {
+	private void addDefaultSelectedTiles(CharacterActor target) {
 		/*
 		int speed = target.getSpeed();
 		for (int x = -speed ; x <= speed; x++) {
@@ -145,13 +152,20 @@ public class RPGStage extends Stage {
 				//	continue;
 			*/
 		// Map of locations to speed left, note for now some may be negative (actually unreachable)
-		Set<Vector2> checkedTiles = Wayfinder.getAllSelectableTiles(target, target.getCell(), 3, mapInfo,
-				new ActionProperties(EffectedByTerrain.RESPECT_TERRAIN, CanSelect.TILE, CanMoveThrough.WALLS, CanSelect.ENEMY));   //Wayfinder.getAllMoveableTiles(target, mapInfo);
+		Map<Vector2, Integer> checkedTilesWithCost = Wayfinder.getAllSelectableTiles2(target, target.getCell(), 6, mapInfo,
+				new ActionProperties(EffectedByTerrain.RESPECT_TERRAIN, CanMoveThrough.PLAYER, CanSelect.CHARACTER, CanSelect.WALLS, CanSelect.TILE));   //Wayfinder.getAllMoveableTiles(target, mapInfo);
+		Set<Vector2> checkedTiles = checkedTilesWithCost.keySet();
+		
+		//test code
+		checkedTiles.removeAll(Wayfinder.getAllOutOfSight(target.getCell(), checkedTiles, mapInfo));
+		
 		
 		for (Vector2 position : checkedTiles) {
 			if (true) { //checkedTiles.get(position) >= 0) {  // loop over all positions the player can reach this turn
 				//System.out.println(position);
 				// create and setup a moveableActor at that point
+				
+				//SelectableActionActor moveableActor = new SelectableActionActor();
 				Actor moveableActor = new Actor() {
 					private final Texture texture = moveableTexture;
 					
@@ -170,6 +184,29 @@ public class RPGStage extends Stage {
 				addActor(moveableActor);
 				//System.out.println(moveableActor.getX() + ", " + moveableActor.getY());
 			}
+		}
+		// jank code
+		AttackAction a = target.getBasicAttack();
+		Set<Vector2> attackTargets = Wayfinder.getAllSelectableTiles2(target, target.getCell(), a.range, mapInfo, a.p).keySet();
+		
+		final Texture attackTexture = new Texture(Gdx.files.internal("data/MiscSprites/attackable.png"));
+		for (Vector2 v : attackTargets) {
+			Actor targetableActor = new Actor() {
+				private final Texture texture = attackTexture;
+				
+				@Override
+				public void draw(Batch batch, float alpha) {
+					batch.draw(texture,  getX(),  getY());
+				}
+			};
+			
+			targetableActor.setBounds(targetableActor.getX(), targetableActor.getY(),
+					attackTexture.getWidth(), attackTexture.getHeight());
+			targetableActor.setPosition(v.x * TILE_SIZE, v.y * TILE_SIZE);
+			targetableActor.setTouchable(Touchable.enabled);
+			attackableTiles.add(targetableActor);
+			addActor(targetableActor);
+			
 		}
 		//}
 				
@@ -206,14 +243,12 @@ public class RPGStage extends Stage {
 			playerFocus = true;
 			focusedPlayer = (PlayerActor) selected;
 			clearMoveableTiles();
-			addMoveableTiles(focusedPlayer);
+			addDefaultSelectedTiles(focusedPlayer);
 			return true;
-		} else if (selected instanceof EnemyActor) {
-			if (playerFocus) {
-				
-			}
 		} else if (moveableTiles.contains(selected)) {  // movement location selected, move to that location
 			focusedPlayer.setPosition(selected.getX(), selected.getY());
+		} else if (attackableTiles.contains(selected)) {
+			mapInfo.handleAttack(new Vector2(((int) selected.getX())/64, ((int) selected.getY())/64), focusedPlayer.getBasicAttack());
 		}
 		
 		// no longer moving, so lose focus
@@ -223,7 +258,11 @@ public class RPGStage extends Stage {
 		return true;
 	}
 	 
-	
+	public void removeCharacter(CharacterActor c) {
+		mapInfo.removeCharacter(c);
+		c.remove();
+		c.clear();
+	}
 	
 	/**
 	 *  Converts from a screen position z (i.e. from mouse) and returns the closest grid square

@@ -23,8 +23,8 @@ public class CharacterInfo {
 	public int maxSpeed;  // character's max moves per turn
 	public int maxHealth;   // character's starting hp
 	
-	private List<AttackAction> actions;  // actions a character can make
-	private AttackAction basicAttack;  // the default attack action
+	public List<AttackAction> actions;  // actions a character can make
+	public AttackAction basicAttack;  // the default attack action
 		
 	// Static field to track characters
 	private static Map<String, Integer> existingCharacters;

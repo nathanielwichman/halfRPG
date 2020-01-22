@@ -1,5 +1,7 @@
 package com.mygdx.game;
 
+import java.util.Collection;
+
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.Screen;
@@ -19,7 +21,8 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
  */
 public class RPG implements Screen {
 	private halfRPG parent;
-	private Stage mainStage;
+	private RPGStage mainStage;
+	private UiStage uiStage;
 	private OrthographicCamera cam;
 	
 	private TiledMapRenderer mapRenderer;
@@ -44,20 +47,51 @@ public class RPG implements Screen {
 		mapRenderer = new OrthogonalTiledMapRenderer(map);
 	
 		// create mainStage for sprites, giving it the tiled map and cam for logic
-		mainStage = new RPGStage(map, cam); //Stage(new ScreenViewport(cam));
+		
+		
+		mainStage = new RPGStage(this, map, cam); //Stage(new ScreenViewport(cam));
+		uiStage = new UiStage(this, cam);
+		
+		//mainStage.addUiAction();
 		//mapStage = new TiledMapStage(map);
 		//mainStage.getViewport().setCamera(cam);
 
 		// create a misc handler to deal with panning and other general non-game inputs
-		MiscInputHandler camControl = new MiscInputHandler(cam);
+		
 		
 		// setup input passing.
 		multiplexer = new InputMultiplexer();
-		multiplexer.addProcessor(camControl);
+		multiplexer.addProcessor(uiStage);
 		multiplexer.addProcessor(mainStage);
 		//multiplexer.addProcessor(mapStage);
 	
 		
+	}
+	
+	public enum UiAction {
+		ADD_BUTTON, ADD_BUTTONS, REMOVE_BUTTONS;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public boolean passToUi(UiAction action, Object o) {
+		switch (action) {
+			case ADD_BUTTON: 
+				uiStage.addActionButton((UiActionActor) o);
+				break;
+			case ADD_BUTTONS:
+				uiStage.addActionButtons((Collection<UiActionActor>) o);
+				break;
+			case REMOVE_BUTTONS:
+				uiStage.removeActionButtons();
+				break;
+			default:
+				return false;
+		}
+		return true;
+	}
+	
+	public void passToRPG(UiActionActor a) {
+		mainStage.handleUiSelection(a);
 	}
 	
 	@Override
@@ -79,6 +113,7 @@ public class RPG implements Screen {
 		mapRenderer.render();
 	
 		mainStage.draw();
+		uiStage.draw();
 		//mapStage.draw();
 	}
 	

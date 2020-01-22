@@ -128,6 +128,13 @@ public class CharacterInfo {
 		return null;
 	}
 
+	/**
+	 * Adds an attack action this Character can perform.
+	 * Sets it as the basic attack if said character has
+	 * no prior actions added
+	 * 
+	 * @param a Descriptor of said attack
+	 */
 	public void addActions(AttackAction a) {
 		this.actions.add(a);
 		if (this.basicAttack == null) {
@@ -135,6 +142,13 @@ public class CharacterInfo {
 		}
 	}
 	
+	/**
+	 * Adds a list of attack actions this character can perform.
+	 * Sets the first item in list as the basic attack if said character
+	 * has no prior actions added.
+	 * 
+	 * @param l List of attack action descriptors
+	 */
 	public void addActions(List<AttackAction> l) {
 		if (l != null && l.size() > 0) {
 			actions.addAll(l);
@@ -144,6 +158,11 @@ public class CharacterInfo {
 		}
 	}
 	
+	/**
+	 * Sets a given attack as this character's basic attack.
+	 * Will add it to available actions if not already added.
+	 * @param a The attack to set
+	 */
 	public void setBasicAttack(AttackAction a) {
 		if (!actions.contains(a)) {
 			actions.add(a);

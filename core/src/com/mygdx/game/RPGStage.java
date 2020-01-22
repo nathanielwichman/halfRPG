@@ -1,6 +1,7 @@
 package com.mygdx.game;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -28,18 +29,22 @@ import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.mygdx.game.ActionProperties.CanMoveThrough;
 import com.mygdx.game.ActionProperties.CanSelect;
+import com.mygdx.game.ActionProperties.EffectedByDarkness;
 import com.mygdx.game.ActionProperties.EffectedByTerrain;
+import com.mygdx.game.RPG.UiAction;
+import com.mygdx.game.UiActionActor.SpecialAction;
 
 /**
  * Main class for the rpg game play, including logic and input handeling.
  */
 public class RPGStage extends Stage {
+	private RPG parent;
 	private OrthographicCamera cam; 
 	private MapInfo mapInfo;  // stores info map layout and tiles
 	//private TiledMap tiledMap;
 	//private Integer[][] mapInfo;
 	private SelectorActor selected;  // cursor info, should be moved
-	private Texture moveableTexture;  // same
+
 	
 	public static final int TILE_SIZE = 64;  // tile size in pixel, must match Tiled info
 	
@@ -47,8 +52,8 @@ public class RPGStage extends Stage {
 	List<PlayerActor> playerActors;  // all actors the player controls
 	public boolean playerFocus;  // has a playable actor been focused on
 	public PlayerActor focusedPlayer;  // which playable actor is focused on (only valid if playerFocus is true)
-	Set<Actor> moveableTiles;  // saved info about display, should be changed
-	Set<Actor> attackableTiles;
+	Set<SelectableActionActor> selectableTiles;
+	Map<Vector2, Actor> darknessTiles;
 	
 	/**
 	 * Sets up display and logic for the map, characters, user input handling etc.
@@ -57,8 +62,9 @@ public class RPGStage extends Stage {
 	 * @param map a TiledMap representing the map to be loaded
 	 * @param cam the camera associated with other stages for panning, etc.
 	 */
-	public RPGStage(TiledMap map, OrthographicCamera cam) {
+	public RPGStage(RPG parent, TiledMap map, OrthographicCamera cam) {
 		getViewport().setCamera(cam);
+		this.parent = parent;
 		this.cam = cam;
 		this.mapInfo = new MapInfo(map);
 		selected = new SelectorActor();
@@ -96,120 +102,89 @@ public class RPGStage extends Stage {
 		
 		
 		// add textures for the move-able tiles image
-		moveableTexture = new Texture(Gdx.files.internal("data/MiscSprites/moveable.png"));
-		moveableTiles = new HashSet<>();
-		attackableTiles = new HashSet<>();
+		selectableTiles = new HashSet<>();
 		//Systemom.out.println(moblin.isTouchable());
+		
+		// darkness 
+		darknessTiles = new HashMap<>();
+		addDarknessToMap(mapInfo);
+		clearDarkness(5);
+		
+		
+	}
+	
+	public void removeUiActions() {
+		parent.passToUi(UiAction.REMOVE_BUTTONS, null);
+	}
+	
+	public void addUiAction(PlayerActor origin) {
+		parent.passToUi(UiAction.ADD_BUTTON, new UiActionActor(
+				new Texture(Gdx.files.internal("data/UiData/attackIcon.png")),
+				origin, origin.getBasicAttack()));
 	}
 	
 	/**
 	 * Clears all moveable tile actors currently created,
 	 * removing them from the set and clearing their actor's
 	 */
-	private void clearMoveableTiles() {
-		for (Actor tile : moveableTiles) {
+	private void clearSelectableTiles() {
+		for (Actor tile : selectableTiles) {
 			tile.remove();
 			tile.clear();
 		}
-		for (Actor tile : attackableTiles) {
+		for (Actor tile : selectableTiles) {
 			tile.remove();
 			tile.clear();
 		}
-		moveableTiles.clear();
-		attackableTiles.clear();
+		selectableTiles.clear();
 	}
 	
-	/**
-	 * Given a playable character, creates moveableActor tiles on every
-	 * square they can move to this turn which will effect display and
-	 * facilitate moving the character.
-	 * 
-	 * @param target the playerActor whose is preparing to move
-	 */
-	private void addDefaultSelectedTiles(CharacterActor target) {
-		/*
-		int speed = target.getSpeed();
-		for (int x = -speed ; x <= speed; x++) {
-			for (int y = -speed; y <= speed; y++) {
-				float drawx = target.getX() + x * TILE_SIZE;
-				float drawy = target.getY() + y * TILE_SIZE;
-				
-			
-				if (drawx < 0 || drawy < 0) {
-					continue;
-				}
-				
-				int cellx = (int) target.getX() / TILE_SIZE + x;
-				int celly = (int) target.getY() / TILE_SIZE + y;
-				
-				int speedToCross = mapInfo.getTileSpeedToCross(cellx, celly);
-				if (speedToCross > 1)
-					continue;
-				//int cellType = ((TiledMapTileLayer) tiledMap.getLayers().get(0)).getCell(cellx, celly).getTile().getId();
-				//System.out.println(cellType);
-	
-				//if (cellType == 1) 
-				//	continue;
-			*/
-		// Map of locations to speed left, note for now some may be negative (actually unreachable)
-		Map<Vector2, Integer> checkedTilesWithCost = Wayfinder.getAllSelectableTiles2(target, target.getCell(), 6, mapInfo,
-				new ActionProperties(EffectedByTerrain.RESPECT_TERRAIN, CanMoveThrough.PLAYER, CanSelect.CHARACTER, CanSelect.WALLS, CanSelect.TILE));   //Wayfinder.getAllMoveableTiles(target, mapInfo);
-		Set<Vector2> checkedTiles = checkedTilesWithCost.keySet();
-		
-		//test code
-		checkedTiles.removeAll(Wayfinder.getAllOutOfSight(target.getCell(), checkedTiles, mapInfo));
-		
-		
-		for (Vector2 position : checkedTiles) {
-			if (true) { //checkedTiles.get(position) >= 0) {  // loop over all positions the player can reach this turn
-				//System.out.println(position);
-				// create and setup a moveableActor at that point
-				
-				//SelectableActionActor moveableActor = new SelectableActionActor();
-				Actor moveableActor = new Actor() {
-					private final Texture texture = moveableTexture;
-					
-					@Override
-					public void draw(Batch batch, float alpha) {
-						batch.draw(texture,  getX(),  getY());
-					}
-				};
-				
-				moveableActor.setBounds(moveableActor.getX(), moveableActor.getY(),
-					moveableTexture.getWidth(), moveableTexture.getHeight());
-				//moveableActor.setPosition(drawx, drawy);
-				moveableActor.setPosition(position.x * TILE_SIZE, position.y * TILE_SIZE);
-				moveableActor.setTouchable(Touchable.enabled);
-				moveableTiles.add(moveableActor);  // add to set so we can clear when no longer needed
-				addActor(moveableActor);
-				//System.out.println(moveableActor.getX() + ", " + moveableActor.getY());
+	public void handleUiSelection(UiActionActor a) {
+		clearSelectableTiles();
+		if (a.isSpecial()) {
+			if (a.other == SpecialAction.MOVE) {
+				displayMove(a.base);
 			}
+		} else {
+			displayAttack(a.base, a.attack);
 		}
-		// jank code
-		AttackAction a = target.getBasicAttack();
-		Set<Vector2> attackTargets = Wayfinder.getAllSelectableTiles2(target, target.getCell(), a.range, mapInfo, a.p).keySet();
+	}
+	
+	private void displayAttack(CharacterActor origin, AttackAction a) {
+		Map<Vector2, Integer> checkedTiles = Wayfinder.getAllSelectableTiles2(origin, origin.getCell(),
+				a.range, mapInfo, a.p);
+		Texture attackableTexture = SelectableActionActor.getAttackableTexture();
 		
-		final Texture attackTexture = new Texture(Gdx.files.internal("data/MiscSprites/attackable.png"));
-		for (Vector2 v : attackTargets) {
-			Actor targetableActor = new Actor() {
-				private final Texture texture = attackTexture;
-				
-				@Override
-				public void draw(Batch batch, float alpha) {
-					batch.draw(texture,  getX(),  getY());
-				}
-			};
-			
-			targetableActor.setBounds(targetableActor.getX(), targetableActor.getY(),
-					attackTexture.getWidth(), attackTexture.getHeight());
-			targetableActor.setPosition(v.x * TILE_SIZE, v.y * TILE_SIZE);
-			targetableActor.setTouchable(Touchable.enabled);
-			attackableTiles.add(targetableActor);
-			addActor(targetableActor);
-			
+		for (Vector2 position : checkedTiles.keySet()) {
+			SelectableActionActor newTile = new SelectableActionActor(
+					origin, attackableTexture, a);
+			newTile.setBounds(newTile.getX(), newTile.getY(),
+					attackableTexture.getWidth(), attackableTexture.getHeight());
+			newTile.setPosition(position.x * TILE_SIZE, position.y * TILE_SIZE);
+			newTile.setTouchable(Touchable.enabled);
+			selectableTiles.add(newTile);
+			addActor(newTile);
+					
 		}
-		//}
-				
+	}
+	
+	
+	
+	private void displayMove(CharacterActor origin) {
+		Map<Vector2, Integer> checkedTiles = Wayfinder.getAllSelectableTiles2(origin, origin.getCell(), origin.getSpeedRemaining(), mapInfo,
+				new ActionProperties(EffectedByTerrain.RESPECT_TERRAIN, CanMoveThrough.PLAYER, CanSelect.TILE));   //Wayfinder.getAllMoveableTiles(target, mapInfo);
+		Texture moveableTexture = SelectableActionActor.getMoveableTexture();
+		
+		for (Vector2 position : checkedTiles.keySet()) {
+			SelectableActionActor a = new SelectableActionActor(
+					origin, moveableTexture, checkedTiles.get(position));
+			a.setBounds(a.getX(), a.getY(), moveableTexture.getWidth(), moveableTexture.getHeight());
+			a.setPosition(position.x * TILE_SIZE, position.y * TILE_SIZE);
+			a.setTouchable(Touchable.enabled);
+			selectableTiles.add(a);  // add to set so we can clear when no longer needed
+			addActor(a);
+		}
+		
 	}
 	
 	@Override
@@ -240,24 +215,34 @@ public class RPGStage extends Stage {
 		
 		if (selected instanceof PlayerActor) {  // player character hit, give them focus
 			//System.out.println(((PlayerActor) selected).getCell());
-			playerFocus = true;
-			focusedPlayer = (PlayerActor) selected;
-			clearMoveableTiles();
-			addDefaultSelectedTiles(focusedPlayer);
+			giveFocus((PlayerActor) selected);
 			return true;
-		} else if (moveableTiles.contains(selected)) {  // movement location selected, move to that location
-			focusedPlayer.setPosition(selected.getX(), selected.getY());
-		} else if (attackableTiles.contains(selected)) {
-			mapInfo.handleAttack(new Vector2(((int) selected.getX())/64, ((int) selected.getY())/64), focusedPlayer.getBasicAttack());
-		}
+		} else if (selected instanceof SelectableActionActor) {  // movement location selected, move to that location
+			SelectableActionActor sa = (SelectableActionActor) selected;
+			if (sa.isMove()) {
+				focusedPlayer.setPosition(selected.getX(), selected.getY());
+				clearDarkness(5);
+			} else if (sa.isAttack()) {
+				mapInfo.handleAttack(new Vector2(((int) selected.getX())/64,
+						((int) selected.getY())/64), sa.getAttack());
+			}
+		}	
 		
-		// no longer moving, so lose focus
-		
+		removeUiActions();
 		playerFocus = false;
-		clearMoveableTiles();
+		clearSelectableTiles();
 		return true;
 	}
 	 
+	public void giveFocus(PlayerActor origin) {
+		playerFocus = true;
+		focusedPlayer = origin;
+		clearSelectableTiles();
+		displayMove(origin);
+		removeUiActions();
+		addUiAction(origin);
+	}
+	
 	public void removeCharacter(CharacterActor c) {
 		mapInfo.removeCharacter(c);
 		c.remove();
@@ -269,6 +254,74 @@ public class RPGStage extends Stage {
 	 */
 	 private int snapToGrid(float z) {
 		return (int) z / TILE_SIZE * TILE_SIZE;
+	 }
+	
+	 /**
+	  * Removes darkness from all tiles inhabited by playerActors as well as all tiles within their
+	  * line of sight up to range tiles. Should be called on game start and every time a playerActor's 
+	  * position update
+	  * TODO: Add method for only updating one actor at once (save computation)
+	  * @param range number of tiles away to clear darkness from (if in actor line of sight)
+	  */
+	 private void clearDarkness(int range) {
+		 for (PlayerActor p : playerActors) {
+			 removeDarkness(p.getCell());
+			 Set<Vector2> toClear = Wayfinder.getAllSelectableTiles2(
+					 p, p.getCell(), range, mapInfo, new ActionProperties(
+							 EffectedByDarkness.IGNORE, EffectedByTerrain.IGNORE_TERRAIN,
+							 CanSelect.WALLS, CanSelect.ENEMY, CanSelect.TILE,
+							 CanMoveThrough.CHARACTER)).keySet();
+			 toClear.removeAll(Wayfinder.getAllOutOfSight(p.getCell(), toClear, mapInfo));
+			 for (Vector2 v : toClear) {
+				 removeDarkness(v);
+			 }
+		 }
+	 }
+	 
+	 /**
+	  * Removes darkness tiles from a specific position, both visually and from mapInfo
+	  * @param position tile to remove darkness from
+	  * @return true if darkness tile was removed, false if not (wasn't darkness to begin with)
+	  */
+	 private boolean removeDarkness(Vector2 position) {
+		 if (darknessTiles.containsKey(position)) {
+			 mapInfo.removeDarkness(position);
+			 Actor d = darknessTiles.get(position);
+			 darknessTiles.remove(position);
+			 d.remove();
+			 d.clear();
+			 return true;
+		 }
+		 return false;
+	 }
+	 
+	 /**
+	  * Adds darkness tiles to the entire map, updating mapInfo and adding darkness tiles over
+	  * entire visual map
+	  * @param map
+	  */
+	 private void addDarknessToMap(MapInfo map) {
+		 Vector2 bounds = map.getMapSize();
+		 final Texture t = new Texture(Gdx.files.internal("data/MiscSprites/darkness.png"));
+		 for (int x = 0; x < bounds.x; x++) {
+			 for (int y = 0; y < bounds.y; y++) {
+				 Actor darkness = new Actor() {
+					 Texture texture = t;
+					
+					 @Override
+					 public void draw(Batch batch, float alpha) {
+						 batch.draw(texture,  getX(),  getY());
+					 }
+					
+				 };
+				 darkness.setBounds(darkness.getX(), darkness.getY(), t.getWidth(), t.getHeight());
+				 darkness.setPosition(x * TILE_SIZE, y * TILE_SIZE);
+				 darkness.setTouchable(Touchable.disabled);
+				 darknessTiles.put(new Vector2(x,y), darkness);
+				 addActor(darkness);
+				 map.addDarkness(); 
+			}
+		}
 	}
 }
 	

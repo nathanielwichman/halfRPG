@@ -93,15 +93,15 @@ public class CharacterActor extends Actor {
 		return maxHealth;
 	}
 	
-	public int getspeedRemaining() {
+	public int getSpeedRemaining() {
 		return speedRemaining;
 	}
 	
-	public void setspeedRemaining(int moves) {
+	public void setSpeedRemaining(int moves) {
 		speedRemaining = moves;
 	}
 	
-	public boolean hasspeedRemaining() {
+	public boolean hasSpeedRemaining() {
 		return speedRemaining > 0;
 	}
 	

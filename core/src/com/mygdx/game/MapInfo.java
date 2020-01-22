@@ -20,6 +20,7 @@ import com.badlogic.gdx.math.Vector2;
 public class MapInfo {
 	private TiledMap tiledMap;  
 	private TileInfo[][] infoMap;  // 2D map array of tiles reflecting the tiledMap
+	private boolean[][] darknessMap;
 	private Set<CharacterActor> characters;
 	
 	/**
@@ -170,6 +171,16 @@ public class MapInfo {
 		return newMap;
 	}
 	
+	/**
+	 * Given an attack at a location handles it by passing it to
+	 * the actor at the location (if one exists)
+	 * TODO: Add AOE support 
+	 * 
+	 * @param location Location tile of the attack
+	 * @param a Info about the attack
+	 * @return True if a characterActor was at the given location to handle
+	 *      the attack, false otherwise
+	 */
 	public boolean handleAttack(Vector2 location, AttackAction a) {
 		for (CharacterActor c : characters) {
 			if (c.getCell().equals(location)) {
@@ -178,6 +189,57 @@ public class MapInfo {
 			}
 		}
 		return false;
+	}
+	
+	/**
+	 * @param v The location of a tile in map
+	 * @return If the tile is covered by darkness
+	 */
+	public boolean isDarkness(Vector2 v) {
+		return isDarkness((int) v.x, (int) v.y);
+	}
+	
+	/**
+	 * @param x X value of a tile in map
+	 * @param y Y value of a tile in map
+	 * @return If the tile is covered by darkness
+	 */
+	public boolean isDarkness(int x, int y) {
+		return darknessMap != null && darknessMap[x][y];
+	}
+	
+	/**
+	 * Removes darkness from a given tile. Note this only effects
+	 * logic, not display
+	 * @param v Location of tile to remove darkness from
+	 */
+	public void removeDarkness(Vector2 v) {
+		removeDarkness((int) v.x, (int) v.y);
+	}
+	
+	/**
+	 * Removes darkness from a given tile. Note this only effects
+	 * logic, not display
+	 * @param x X location of tile to remove darkness from
+	 * @param y Y Location of tile to remove darkness from
+	 */
+	public void removeDarkness(int x, int y) {
+		// prob will throw exception if addDarkness not called first
+		darknessMap[x][y] = false;
+	}
+	
+	/**
+	 * Adds darkness over the entire map. Note this must be called
+	 * before darkness is attempted to be removed. Also only effects
+	 * logic, not display
+	 */
+	public void addDarkness() {
+		darknessMap = new boolean[infoMap.length][infoMap[0].length];
+		for (int x = 0; x < darknessMap.length; x++) {
+			for (int y = 0; y < darknessMap[0].length; y++) {
+				darknessMap[x][y] = true;
+			}
+		}
 	}
 	
 }

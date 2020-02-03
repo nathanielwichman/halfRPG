@@ -1,5 +1,6 @@
 package com.mygdx.game;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.mygdx.game.ActionProperties.CanSelect;
 import com.mygdx.game.ActionProperties.EffectedByTerrain;
@@ -69,9 +70,11 @@ public class AttackAction {
 	public static AttackAction getAttack(String name) {
 		switch (name) {
 			case "slash":
-				return new AttackAction("Slash", new ActionProperties(CanSelect.ENEMY, EffectedByTerrain.IGNORE_TERRAIN), 2, 1);
+				return new AttackAction("Slash", new ActionProperties(CanSelect.ENEMY,
+						EffectedByTerrain.IGNORE_TERRAIN), 2, 1, new Texture(Gdx.files.internal("data/UiData/attackIcon.png")));
 			default:
-				return new AttackAction("Stab", new ActionProperties(CanSelect.ENEMY, EffectedByTerrain.IGNORE_TERRAIN), 2, 1);
+				return new AttackAction("Stab", new ActionProperties(CanSelect.ENEMY,
+						EffectedByTerrain.IGNORE_TERRAIN), 2, 1, new Texture(Gdx.files.internal("data/UiData/attackIcon.png")));
 		}
 	}
 }

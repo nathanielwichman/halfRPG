@@ -22,12 +22,16 @@ public class CharacterActor extends Actor {
 	private String className;  // type name of actor (i.e. orc), may be same as name
 	private int maxSpeed;  // how many tiles can be moved each turn
 	private int maxHealth; // how much dmg it can take
+	private int vision;
 	
 	private int speedRemaining;  // number of moves left this turn
 	private int healthRemaining;  // health remaining
 	
 	private List<AttackAction> actions;  // actions a character can make
 	private AttackAction basicAttack; 
+	
+	private int maxActions;
+	private int actionsLeft;
 	
 	/**
 	 * @param form The texture to represent this character
@@ -53,8 +57,11 @@ public class CharacterActor extends Actor {
 		this.maxHealth = i.maxHealth;
 		this.actions = i.actions;
 		this.basicAttack = i.basicAttack;
+		this.maxActions = 1;
+		this.vision = i.vision;
 		this.setBounds(getX(), getY(), i.t.getWidth(), i.t.getHeight());
-	
+		
+		this.actionsLeft = 1;
 		this.healthRemaining = this.maxHealth;
 		this.speedRemaining = this.maxSpeed;
 	}
@@ -114,6 +121,19 @@ public class CharacterActor extends Actor {
 		return speedRemaining;	
 	}
 	
+	public boolean isExhausted() {
+		return actionsLeft == 0;
+	}
+	
+	public int getVisionDistance() {
+		return vision;
+	}
+	
+	public boolean exhaustAction() {
+		actionsLeft -= 1;
+		return actionsLeft == 0;
+	}
+	
 	public int regainMoves(int spaces, boolean overflow) {
 		int newspeedRemaining = speedRemaining + spaces;
 		if (overflow || newspeedRemaining < maxSpeed) {
@@ -125,8 +145,9 @@ public class CharacterActor extends Actor {
 		return speedRemaining;
 	}
 	
-	public void resetMoves() {
+	public void refresh() {
 		speedRemaining = maxSpeed;
+		actionsLeft = maxActions;
 	}
 	
 	public int getHealth() {
@@ -154,12 +175,17 @@ public class CharacterActor extends Actor {
 		return healthRemaining;
 	}
 	
-	public void handleAttack(AttackAction a) {
+	public void setMovesLeft(int movesLeft) {
+		this.speedRemaining = movesLeft;
+	}
+	
+	public int handleAttack(AttackAction a) {
 		System.out.println(name + ": ouch! Took " + a.damage + " dmg / " + this.healthRemaining);
 		if (this.takeDamage(a.damage) == 0) {
 			System.out.println(name + ": zoinks! I'm dead");
 			parent.removeCharacter(this);
 		}
+		return a.damage;
 		
 	}
 	

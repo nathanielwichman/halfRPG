@@ -60,6 +60,10 @@ public class MapInfo {
 		return characterLocations;
 	}
 	
+	public boolean empty(Vector2 v) {
+		return !getTileInfo(v).isWall() && !getCharacterPositions().contains(v);
+	}
+	
 	public Set<Vector2> getSelectedCharacterPositions(Class type) {
 		Set<Vector2> characterPositions = new HashSet<>();
 		for (CharacterActor c : characters) {
@@ -80,6 +84,31 @@ public class MapInfo {
 	public Set<Vector2> getPlayerPositions() {
 		return getSelectedCharacterPositions(PlayerActor.class);
 	}
+	
+	private CharacterActor characterTypeAtPosition(Vector2 v, Class type) {
+		for (CharacterActor a : characters) {
+			if (type.isInstance(a) && a.getCell().epsilonEquals(v)) {
+				return a;
+			}
+		}
+		return null;
+	}
+	
+	public CharacterActor characterAtPosition(Vector2 v) { 
+		return characterTypeAtPosition(v, CharacterActor.class);
+	}
+	
+	public EnemyActor enemyAtPosition(Vector2 v) {
+		return (EnemyActor) characterTypeAtPosition(v, EnemyActor.class);
+	}
+	
+	public PlayerActor playerAtPosition(Vector2 v) {
+		return (PlayerActor) characterTypeAtPosition(v, PlayerActor.class);
+	}
+	
+	
+	
+	
 	
 	
 	/**
@@ -184,7 +213,8 @@ public class MapInfo {
 	public boolean handleAttack(Vector2 location, AttackAction a) {
 		for (CharacterActor c : characters) {
 			if (c.getCell().equals(location)) {
-				c.handleAttack(a);
+				int hp = c.handleAttack(a);
+				
 				return true;
 			}
 		}

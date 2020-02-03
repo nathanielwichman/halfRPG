@@ -2,12 +2,20 @@ package com.mygdx.game;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.g2d.Animation;
+import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.TextureAtlas;
+import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -26,7 +34,8 @@ public class UiStage extends Stage {
 	
 	private Vector2 actionBoxLocation;
 	private List<UiActionActor> selectables; 
-		
+	private Map<String, Actor> reusableActors;
+	
 	/**
 	 * @param cam the camera other stages are using
 	 */
@@ -37,17 +46,53 @@ public class UiStage extends Stage {
 		mapPanY = 0;
 		actionBoxLocation = new Vector2(50, 50);
 		selectables = new ArrayList<>();
+		
+		reusableActors = new HashMap<>();
+		
+		final TextureAtlas ta = new TextureAtlas(Gdx.files.internal("data/MiscSprites/enemyTurn.atlas"));
+		Actor enemyTurn = new Actor() {
+			private final Animation<AtlasRegion> ani = new Animation<>(1/4f, ta.getRegions());
+			private float stateTime = 0;
+			
+			@Override
+			public void act(float delta) {
+				super.act(delta);
+				stateTime += delta;
+			}
+			
+			@Override
+			public void draw(Batch batch, float delta) {
+				batch.draw(ani.getKeyFrame(stateTime, true), getX(), getY());
+			}
+			
+		};
+		
+		reusableActors.put("enemyTurn", enemyTurn);
+		
+		enemyTurn.setX(getWidth() / 2);
+		enemyTurn.setY(getHeight() - 30 - ta.getTextures().first().getHeight());
+		enemyTurn.setVisible(false);
+		addActor(enemyTurn);
 	}
 	
-	public void addActionButtons(Collection<UiActionActor> l) {
-		for (UiActionActor a : l) {
-			addActionButtonInternal(a);
+	public void toggleVisibility(String name) {
+		if (reusableActors.containsKey(name)) {
+			Actor a = reusableActors.get(name);
+			a.setVisible(!a.isVisible());
+		}
+	}
+	
+	public void addActionButtons(PlayerActor origin, Collection<AttackAction> l) {
+		for (AttackAction a : l) {
+			addActionButtonInternal(new UiActionActor(
+					origin, a));
 		}
 		reorderSelectables();
 	}
 	
-	public void addActionButton(UiActionActor a) {
-		addActionButtonInternal(a);
+	public void addActionButton(PlayerActor origin, AttackAction a) {
+		addActionButtonInternal(new UiActionActor(
+				origin, a));
 		reorderSelectables();
 	}
 	
@@ -90,20 +135,23 @@ public class UiStage extends Stage {
 	public boolean keyUp(int keycode) {
 		// pans the camera
 		// TODO make this a smooth transition 
-		if (keycode == Input.Keys.LEFT)
-	        cam.translate(-32,0);
-		else if(keycode == Input.Keys.RIGHT)
-	        cam.translate(32,0);
-		else if(keycode == Input.Keys.UP)
-	        cam.translate(0,32);
-		else if(keycode == Input.Keys.DOWN)
-	        cam.translate(0,-32);
-		else if (keycode == Input.Keys.SPACE)
-			parent.passToRPG(new UiActionActor(null, null, SpecialAction.END_TURN));
-		else 
-			return false;  // didn't get handled here
-		
-		return true;  // exited if/else, must have handled 
+		if (parent.userInputAllowed()) {
+			if (keycode == Input.Keys.LEFT)
+		        cam.translate(-32,0);
+			else if(keycode == Input.Keys.RIGHT)
+		        cam.translate(32,0);
+			else if(keycode == Input.Keys.UP)
+		        cam.translate(0,32);
+			else if(keycode == Input.Keys.DOWN)
+		        cam.translate(0,-32);
+			else if (keycode == Input.Keys.SPACE)
+				parent.passToRPG(new UiActionActor(null, null, SpecialAction.END_TURN));
+			else 
+				return false;  // didn't get handled here
+			
+			return true;  // exited if/else, must have handled 
+		}
+		return false;
 	}
 
 	@Override
@@ -114,12 +162,14 @@ public class UiStage extends Stage {
 
 	@Override
 	public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-		Vector2 stageCoords = screenToStageCoordinates(new Vector2(screenX, screenY));
-		Actor selected = super.hit(stageCoords.x, stageCoords.y, true);
-		
-		if (selected instanceof UiActionActor) {
-			parent.passToRPG((UiActionActor) selected);
-			return true;
+		if (parent.userInputAllowed()) {
+			Vector2 stageCoords = screenToStageCoordinates(new Vector2(screenX, screenY));
+			Actor selected = super.hit(stageCoords.x, stageCoords.y, true);
+			
+			if (selected instanceof UiActionActor) {
+				parent.passToRPG((UiActionActor) selected);
+				return true;
+			}
 		}
 		return false;
 	}

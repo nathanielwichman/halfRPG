@@ -15,6 +15,13 @@ public class UiActionActor extends Actor {
 	public AttackAction attack;
 	public SpecialAction other;
 	
+	public UiActionActor(PlayerActor base, AttackAction action) {
+		this.texture = action.uiImage;
+		this.base = base;
+		this.attack = action;
+		this.other = null;
+	}
+	
 	public UiActionActor(Texture t, PlayerActor base, AttackAction action) {
 		this.texture = t;
 		this.base = base;

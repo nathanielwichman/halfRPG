@@ -1,6 +1,8 @@
 package com.mygdx.game;
 
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputMultiplexer;
@@ -31,8 +33,22 @@ public class RPG implements Screen {
 	
 	private InputMultiplexer multiplexer;
 	
+	private int ulockId;
+	private Set<Integer> userInputLocks;
+	private static MapInfo currentMap;
+	private static GameState state;
+	
+	public static MapInfo getCurrentMapInfo() {
+		return currentMap;
+	}
+	
+	public static void setCurrentMapInfo(MapInfo m) {
+		RPG.currentMap = m;
+	}
+	
 	public RPG(halfRPG program) {
 		parent = program;
+		state = GameState.SETUP;
 		
 		// set up shared camera
 		float w = Gdx.graphics.getWidth();
@@ -52,11 +68,9 @@ public class RPG implements Screen {
 		mainStage = new RPGStage(this, map, cam); //Stage(new ScreenViewport(cam));
 		uiStage = new UiStage(this, cam);
 		
-		//mainStage.addUiAction();
-		//mapStage = new TiledMapStage(map);
-		//mainStage.getViewport().setCamera(cam);
-
-		// create a misc handler to deal with panning and other general non-game inputs
+		// set up locks for user input (i.e. while animation playing)
+		ulockId = 0;
+		userInputLocks = new HashSet<>();
 		
 		
 		// setup input passing.
@@ -64,25 +78,64 @@ public class RPG implements Screen {
 		multiplexer.addProcessor(uiStage);
 		multiplexer.addProcessor(mainStage);
 		//multiplexer.addProcessor(mapStage);
-	
+		state = GameState.PLAYER_TURN;
 		
 	}
 	
+	public static GameState getCurrentGameState() {
+		return state;
+	}
+	
+	public static GameState setCurrentGameState(GameState newState) {
+		GameState oldState = state;
+		state = newState;
+		return oldState;
+	}
+	
+	public boolean unblockUserInput(int lockId) {
+		if (userInputLocks.contains(lockId)) {
+			userInputLocks.remove(lockId);
+		}
+		if (userInputLocks.size() == 0) {
+			ulockId = 0;
+			return true;
+		}
+		return false;
+	}
+	
+	public int blockUserInput() {
+		userInputLocks.add(ulockId);
+		ulockId++;
+		return ulockId - 1;
+	}
+	
+	public boolean userInputAllowed() {
+		return userInputLocks.size() == 0;
+	}
+	
 	public enum UiAction {
-		ADD_BUTTON, ADD_BUTTONS, REMOVE_BUTTONS;
+		ADD_BUTTON, ADD_BUTTONS, REMOVE_BUTTONS, TOGGLE_VISIBILITY;
+	}
+	
+	public boolean passToUi(UiAction action, Object o) {
+		assert !action.equals(UiAction.ADD_BUTTON);
+		return passToUi(action, o, null);
 	}
 	
 	@SuppressWarnings("unchecked")
-	public boolean passToUi(UiAction action, Object o) {
+	public boolean passToUi(UiAction action, Object o, Object o2) {
 		switch (action) {
 			case ADD_BUTTON: 
-				uiStage.addActionButton((UiActionActor) o);
+				uiStage.addActionButton((PlayerActor) o, (AttackAction) o2);
 				break;
 			case ADD_BUTTONS:
-				uiStage.addActionButtons((Collection<UiActionActor>) o);
+				uiStage.addActionButtons((PlayerActor) o, (Collection<AttackAction>) o2);
 				break;
 			case REMOVE_BUTTONS:
 				uiStage.removeActionButtons();
+				break;
+			case TOGGLE_VISIBILITY:
+				uiStage.toggleVisibility((String) o);
 				break;
 			default:
 				return false;
@@ -106,12 +159,14 @@ public class RPG implements Screen {
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		
 	// update stage to fit any camera changes
-		mainStage.act();
+		mainStage.act(delta);
 		//mapStage.act();
 		mainStage.getCamera().update();  // share camera
 		mapRenderer.setView((OrthographicCamera) mainStage.getCamera());
 		mapRenderer.render();
-	
+		
+		uiStage.act(Gdx.graphics.getDeltaTime());
+		
 		mainStage.draw();
 		uiStage.draw();
 		//mapStage.draw();

@@ -3,9 +3,12 @@ package com.mygdx.game;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Queue;
@@ -14,6 +17,7 @@ import com.mygdx.game.ActionProperties.CanSelect;
 import com.mygdx.game.ActionProperties.EffectedByDarkness;
 import com.mygdx.game.ActionProperties.EffectedByTerrain;
 import com.mygdx.game.ActionProperties.Properties;
+
 
 /**
  * Static class for pathfinding tasks, may be replaced with more efficient/sophisticated
@@ -27,21 +31,95 @@ public class Wayfinder {
 	static class DijkstraNode implements Comparable {
 		public final Vector2 node;
 		public int movesLeft;
+		public boolean useMovesLeftForCost;
 		
-		public DijkstraNode(Vector2 n, int m) {
+		public DijkstraNode(Vector2 n, int m, boolean useMovesLeft) {
 			node = n;
 			movesLeft = m;
+			useMovesLeftForCost = useMovesLeft;
+		}
+		
+		public DijkstraNode(Vector2 n, int m) {
+			this(n, m, true);
+		}
+		
+		public void setUseMovesLeftForCost(boolean set) {
+			useMovesLeftForCost = set;
 		}
 
 		@Override
 		// return element with most moves left
 		public int compareTo(Object arg0) {
-			return ((DijkstraNode) arg0).movesLeft - this.movesLeft;
+			if (useMovesLeftForCost)
+				return ((DijkstraNode) arg0).movesLeft - this.movesLeft;
+			else
+				return this.movesLeft - ((DijkstraNode) arg0).movesLeft;
 		}
 		
 		@Override
 		public String toString() {
 			return "(" + node.toString() + ", " + movesLeft + ")";
+		}
+	}
+		
+
+	static class PathNode extends DijkstraNode {
+		private SortedMap<Integer,Vector2> path;
+		private float heuristicCost;
+		private int diagCount;  // used as tie breaker to make more understandable routes
+		private Vector2 l1;
+		private Vector2 l2;
+		
+		public PathNode(Vector2 n, int m, float h) {
+			super(n, m);
+			path = new TreeMap<>();
+			path.put(m,n);
+			heuristicCost = h;
+			l1=n;
+			l2=null;
+			diagCount = 0;
+		}
+		
+		public PathNode(Vector2 n, float h, PathNode lastStep, int cost) {
+			super(n, lastStep.movesLeft+cost, false);
+			path = new TreeMap<>(lastStep.path);
+			path.put(lastStep.movesLeft+cost,n);
+			heuristicCost = h;
+			l2 = lastStep.l1;
+			l1 = n;
+			diagCount = lastStep.diagCount;
+			if (isDiag()) {
+				diagCount++;
+			}
+		}
+					
+		public SortedMap<Integer,Vector2> getPath() {
+			return path;
+		}
+		
+		private boolean isDiag() {
+			if (path.size() < 2) { return false; }
+			
+			if (l1.x != l2.x && l1.y != l2.y) {
+				return true;
+			} else {
+				return false;
+			}
+			
+		}
+		
+		@Override
+		// return element with most moves left
+		public int compareTo(Object arg0) {
+			PathNode other = (PathNode) arg0;
+			float delta =(this.movesLeft + this.heuristicCost)  - (other.movesLeft + other.heuristicCost);
+			if (delta > 0) {
+				return 1;
+			} else if (delta < 0){
+				return -1;
+			} else {
+				return this.diagCount - other.diagCount;
+			}
 		}
 	}
 	
@@ -75,7 +153,6 @@ public class Wayfinder {
 		
 		while (!tilesToCheck.isEmpty()) {
 			DijkstraNode nodeToCheck = tilesToCheck.poll();
-			//System.out.println("exploring: " + (nodeToCheck.node.x - 5) + ", " + (nodeToCheck.node.y - 14) + ": " + nodeToCheck.movesLeft);
 			
 			// Check all adjacent nodes to see if they're selectable or ignorable
 			for (Vector2 v : getAdjacentUncheckedTiles(exploredNodes, nodeToCheck.node, map)) {
@@ -96,9 +173,62 @@ public class Wayfinder {
 			
 		}
 		return selectableTiles;
-		
 	}
 	
+	public static float realDistance(Vector2 origin, Vector2 target) {
+		return Math.abs(origin.dst(target)) / 1.5f;  // regularize for diag movement
+	}
+	
+	public static float realDistance(Vector2 origin, Set<Vector2> targets) {
+		float minDist = Float.MAX_VALUE;
+		for (Vector2 t : targets) {
+			minDist = Math.min(minDist, realDistance(origin, t));
+		}
+		return minDist;
+	}
+	
+	public static SortedMap<Integer, Vector2> getPathToTile(Vector2 origin, Vector2 target,
+			MapInfo map, CharacterActor actor, ActionProperties p) {
+		Set<Vector2> targetSet = new HashSet<>();
+		targetSet.add(target);
+		return getPathToTiles(origin, targetSet, map, actor, p);
+	}
+	
+	
+	
+	public static SortedMap<Integer, Vector2> getPathToTiles(Vector2 origin, Set<Vector2> targets,
+			MapInfo map, CharacterActor actor, ActionProperties p) {
+		System.out.println("pathfinding");
+		PriorityQueue<PathNode> toExplore = new PriorityQueue<>();
+		Set<Vector2> exploredNodes = new HashSet<>();
+		
+		Map<Vector2, CharacterActor> charMap = map.getCharacters(); 
+		PathNode startingPoint = new PathNode(origin, 0, realDistance(origin, targets));
+		toExplore.add(startingPoint);
+		
+		while (!toExplore.isEmpty()) {
+			PathNode nodeToCheck = toExplore.remove();
+			exploredNodes.add(nodeToCheck.node);
+			System.out.println(nodeToCheck.node + ": " + (nodeToCheck.movesLeft+nodeToCheck.heuristicCost)+ " - " + nodeToCheck.diagCount);
+			if (targets.contains(nodeToCheck.node)) {
+				return nodeToCheck.getPath();
+			}
+			
+			for (Vector2 v : getAdjacentUncheckedTiles(exploredNodes, nodeToCheck.node, map)) {
+				exploredNodes.add(v);
+				// Can't select or explore darkness normally
+				if (map.isDarkness(v) && p.isNot(EffectedByDarkness.IGNORE)) { continue; }
+				
+
+				// add to selectable/moveable queue if possible
+				if (targets.contains(v) || canMoveInto(v, map.getTileInfo(v), charMap, p)) {
+					toExplore.add(new PathNode(v, realDistance(v, targets), nodeToCheck, getCost(v, map, p)));
+				}
+			}
+		}
+		return null;
+	}
+		
 	/**
 	 * Can the given tile be explored
 	 * @param position Position of tile to explore
@@ -114,6 +244,14 @@ public class Wayfinder {
 							 (p.is(CanMoveThrough.PLAYER) && (charMap.get(position) instanceof PlayerActor)) ||
 							 (p.is(CanMoveThrough.ENEMY) && (charMap.get(position) instanceof EnemyActor));
 		return notBlocked && (!t.isWall() || p.is(CanMoveThrough.WALLS));
+	}
+	
+	public static int getCost(Vector2 v, MapInfo m, ActionProperties p) {
+		if (p.is(EffectedByTerrain.RESPECT_TERRAIN)) {
+			return m.getTileSpeedToCross(v);
+		} else  {
+			return 1;
+		}
 	}
 	
 	/**
@@ -174,13 +312,32 @@ public class Wayfinder {
 	 * @return a set of vectors reflecting all adjacent tiles to explore
 	 */
 	private static Set<Vector2> getAdjacentUncheckedTiles(Set<Vector2> checkedTiles, Vector2 baseTile, MapInfo map) {
+		Set<Vector2> tilesToCheck = new LinkedHashSet<>();
+		Vector2 bounds = map.getMapSize();
+				// check non-diagonal directions first (for pathfinding)
+		int[] xExplore = {1, -1, 0, 0, 1, 1, -1, -1};
+		int[] yExplore = {0, 0, 1, -1, 1, -1, 1, -1};
+		
+		for (int position = 0; position < xExplore.length; position++) {
+			Vector2 tileToCheck = new Vector2(baseTile.x + xExplore[position],
+											  baseTile.y + yExplore[position]);
+			if (tileToCheck.x >= 0 && tileToCheck.y >= 0 && tileToCheck.x < bounds.x && tileToCheck.y < bounds.y) {
+				if (!checkedTiles.contains(tileToCheck))  // should mean we don't add the base tile to list
+					tilesToCheck.add(tileToCheck);
+			}
+		}
+		
+		return tilesToCheck;
+	}
+	
+	public static Set<Vector2> getAdjacentTiles(Vector2 baseTile, MapInfo map, int distance) {
 		Set<Vector2> tilesToCheck = new HashSet<>();
 		Vector2 bounds = map.getMapSize();
-		for (int x = -1; x <= 1; x++) {
-			for (int y = -1; y <= 1; y++) {
+		for (int x = -distance; x <= distance; x++) {
+			for (int y = -distance; y <= distance; y++) {
 				Vector2 tileToCheck = new Vector2(baseTile.x + x, baseTile.y + y);
 				if (tileToCheck.x >= 0 && tileToCheck.y >= 0 && tileToCheck.x < bounds.x && tileToCheck.y < bounds.y) {
-					if (!checkedTiles.contains(tileToCheck))  // should mean we don't add the base tile to list
+					if (!tileToCheck.equals(baseTile)) 
 						tilesToCheck.add(tileToCheck);
 				}
 			}
@@ -220,7 +377,6 @@ public class Wayfinder {
 		Set<Vector2> seeAble = new HashSet<>();
 		
 		for (Vector2 point : points) {
-			System.out.println(point);
 			if (!traceLine(point, origin, m)) {
 				seeAble.add(point);
 			}

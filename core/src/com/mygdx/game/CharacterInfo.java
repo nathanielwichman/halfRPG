@@ -22,6 +22,7 @@ public class CharacterInfo {
 	public String name;  // unique name of instance: className + Id
 	public int maxSpeed;  // character's max moves per turn
 	public int maxHealth;   // character's starting hp
+	public int vision;  // character sight, in tiles
 	
 	public List<AttackAction> actions;  // actions a character can make
 	public AttackAction basicAttack;  // the default attack action
@@ -38,6 +39,10 @@ public class CharacterInfo {
 			existingCharacters = new HashMap<>();
 	}	
 	
+	public CharacterInfo(String className, int maxSpeed, int maxHealth) {
+		this(className, maxSpeed, maxHealth, 8);
+	}
+	
 	/**
 	 * Creates a CharacterInfo instance as described, adding its class information
 	 * to static id tracking if not used before.
@@ -45,8 +50,9 @@ public class CharacterInfo {
 	 * @param className name of class
 	 * @param maxSpeed character's max moves
 	 * @param maxHealth character's full hp
+	 * @param vision number of tiles that can be seen
 	 */
-	public CharacterInfo(String className, int maxSpeed, int maxHealth) {
+	public CharacterInfo(String className, int maxSpeed, int maxHealth, int vision) {
 		initialize();
 		
 		// get unique id for class 
@@ -64,6 +70,7 @@ public class CharacterInfo {
 		this.name = className + this.Id;
 		this.maxSpeed = maxSpeed;
 		this.maxHealth = maxHealth;
+		this.vision = vision;
 		
 		this.actions = new ArrayList<>();
 	}
@@ -117,7 +124,7 @@ public class CharacterInfo {
 		switch (classname) {
 			case "Moblin":
 				CharacterInfo i = new CharacterInfo(new Texture(Gdx.files.internal("data/CharacterSprites/Moblin.png")),
-						"Moblin", 5, 5);
+						"Moblin", 10, 5);
 				i.addActions(AttackAction.getAttack("Slash"));
 				return i;
 			case "SkeletonPunchingBag":

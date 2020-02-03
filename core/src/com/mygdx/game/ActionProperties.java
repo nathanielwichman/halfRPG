@@ -98,4 +98,9 @@ public class ActionProperties {
 		}
 		return true;
 	}
+	
+	public static ActionProperties getDefaultMoveProperty() {
+		return new ActionProperties(CanSelect.TILE, EffectedByTerrain.RESPECT_TERRAIN);
+				
+	}
 }

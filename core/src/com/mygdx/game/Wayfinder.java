@@ -187,6 +187,16 @@ public class Wayfinder {
 		return minDist;
 	}
 	
+	/**
+	 * Uses A* search to find the shortest path to a tile.
+	 * Attempts to find non-diagonal paths when distance is the same 
+	 * @param origin starting vector 
+	 * @param target vector to find a path to
+	 * @param map MapInfo describing the map 
+	 * @param actor Character instigating the search
+	 * @param p ActionProperties describing what tiles can be moved through, etc.
+	 * @return a Sorted Map describing each move in the path with cost->resulting location
+	 */
 	public static SortedMap<Integer, Vector2> getPathToTile(Vector2 origin, Vector2 target,
 			MapInfo map, CharacterActor actor, ActionProperties p) {
 		Set<Vector2> targetSet = new HashSet<>();
@@ -195,7 +205,16 @@ public class Wayfinder {
 	}
 	
 	
-	
+	/**
+	 * Uses A* search to find the shortest path to one of many tile.
+	 * Attempts to find non-diagonal paths when distance is the same 
+	 * @param origin starting vector 
+	 * @param targets set of vectors to find a path to
+	 * @param map MapInfo describing the map 
+	 * @param actor Character instigating the search
+	 * @param p ActionProperties describing what tiles can be moved through, etc.
+	 * @return a Sorted Map describing each move in the path with cost->resulting location
+	 */
 	public static SortedMap<Integer, Vector2> getPathToTiles(Vector2 origin, Set<Vector2> targets,
 			MapInfo map, CharacterActor actor, ActionProperties p) {
 		System.out.println("pathfinding");

@@ -33,8 +33,8 @@ public class RPG implements Screen {
 	
 	private InputMultiplexer multiplexer;
 	
-	private int ulockId;
-	private Set<Integer> userInputLocks;
+	private static int ulockId;
+	private static Set<Integer> userInputLocks;
 	private static MapInfo currentMap;
 	private static GameState state;
 	
@@ -92,7 +92,7 @@ public class RPG implements Screen {
 		return oldState;
 	}
 	
-	public boolean unblockUserInput(int lockId) {
+	public static boolean unblockUserInput(int lockId) {
 		if (userInputLocks.contains(lockId)) {
 			userInputLocks.remove(lockId);
 		}
@@ -103,13 +103,13 @@ public class RPG implements Screen {
 		return false;
 	}
 	
-	public int blockUserInput() {
+	public static int blockUserInput() {
 		userInputLocks.add(ulockId);
 		ulockId++;
 		return ulockId - 1;
 	}
 	
-	public boolean userInputAllowed() {
+	public static boolean userInputAllowed() {
 		return userInputLocks.size() == 0;
 	}
 	

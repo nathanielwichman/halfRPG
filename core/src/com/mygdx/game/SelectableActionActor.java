@@ -3,6 +3,7 @@ package com.mygdx.game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 
 public class SelectableActionActor extends Actor {
@@ -62,6 +63,12 @@ public class SelectableActionActor extends Actor {
 		return !isAttack();
 	}
 	
+	public Vector2 getCell() {
+		return new Vector2((int) getX() / RPGStage.TILE_SIZE,
+						   (int) getY() / RPGStage.TILE_SIZE);
+	}
+	
+	// depricate
 	public static Texture getMoveableTexture() {
 		return new Texture(Gdx.files.internal("data/MiscSprites/moveable.png"));
 	}

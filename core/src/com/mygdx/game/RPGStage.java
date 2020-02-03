@@ -49,30 +49,26 @@ import com.mygdx.game.UiActionActor.SpecialAction;
 public class RPGStage extends Stage {
 	private RPG parent;
 	private OrthographicCamera cam; 
-	private MapInfo mapInfo;  // stores info map layout and tiles
-	//private TiledMap tiledMap;
-	//private Integer[][] mapInfo;
-	private SelectorActor selected;  // cursor info, should be moved
-	private boolean playerTurn;
+
+
 	private int interactableTurnLock;
 	private int interactableAnimationLock;
-	Vector2 lastCellMousedOver;
-	Strategy consideredStrategy;
-	
+		
 	public static final int TILE_SIZE = 64;  // tile size in pixel, must match Tiled info
 	
 	
 	//List<PlayerActor> playerActors;  // all actors the player controls
 	public boolean playerFocus;  // has a playable actor been focused on
 	public PlayerActor focusedPlayer;  // which playable actor is focused on (only valid if playerFocus is true)
-	Set<SelectableActionActor> selectableTiles;
-	Set<Actor> stepActors;
-	Texture stepTexture;
-	Map<Vector2, Actor> darknessTiles;
+	
 	boolean executingAction;
 	float actionDeltaTime = 0f;
 	
+	EffectsManager effects;
+	DarknessManager darkness;
 	PlayerOperator playerOp;
+	
+	Strategy consideredStrategy;
 	
 	
 	/**
@@ -86,10 +82,11 @@ public class RPGStage extends Stage {
 		getViewport().setCamera(cam);
 		this.parent = parent;
 		this.cam = cam;
-		this.mapInfo = new MapInfo(map);
+		MapInfo mapInfo = new MapInfo(map);
 		
 		RPG.setCurrentMapInfo(mapInfo);
 		
+		effects = new EffectsManager(this);
 		playerOp = new PlayerOperator(this);
 		
 		//selected = new SelectorActor();
@@ -128,27 +125,14 @@ public class RPGStage extends Stage {
 		addActor(moblin2);
 		
 		
-		// add textures for the move-able tiles image
-		selectableTiles = new HashSet<>();
-		//Systemom.out.println(moblin.isTouchable());
-		
 		// darkness 
-		darknessTiles = new HashMap<>();
-		addDarknessToMap(mapInfo);
-		clearDarkness();
+		darkness = new DarknessManager(this);
+		darkness.addDarknessToMap();
+		darkness.clearDarkness(playerOp.getActors());
 		
-		playerTurn = true;
 		interactableTurnLock = -1;
 		interactableAnimationLock = -1;
 		
-		// move this all to its own class
-		stepActors = new HashSet<>();
-		Pixmap pm = new Pixmap(26, 26, Format.RGBA8888);
-		pm.setBlending(Blending.None);
-		pm.setColor(Color.WHITE);
-		pm.fillCircle(13, 13, 10);
-		stepTexture = new Texture(pm);
-		lastCellMousedOver = null;
 		executingAction = false;
 		
 	}
@@ -158,11 +142,13 @@ public class RPGStage extends Stage {
 	 * Should probably be moved to RPG
 	 */
 	public void endPlayerTurn() {
-		clearSelectableTiles();
+		effects.clearSelectableTiles();
+		effects.clearDisplayedStrategy();
+		
 		parent.passToUi(UiAction.REMOVE_BUTTONS, null);
 		parent.passToUi(UiAction.TOGGLE_VISIBILITY, "enemyTurn");
-		playerTurn = false;
-		interactableTurnLock = parent.blockUserInput();
+		RPG.setCurrentGameState(GameState.ENEMY_TURN);
+		interactableTurnLock = RPG.blockUserInput();
 		Timer t = new Timer();
 		t.scheduleTask(new Task() {
 			@Override
@@ -179,8 +165,8 @@ public class RPGStage extends Stage {
 	 */
 	public void endEnemyTurn() {
 		playerOp.refreshAll();
-		playerTurn = true;
-		parent.unblockUserInput(interactableTurnLock);
+		RPG.unblockUserInput(interactableTurnLock);
+		RPG.setCurrentGameState(GameState.PLAYER_TURN);
 		parent.passToUi(UiAction.TOGGLE_VISIBILITY, "enemyTurn");
 	}
 	
@@ -199,27 +185,14 @@ public class RPGStage extends Stage {
 		parent.passToUi(UiAction.ADD_BUTTON, origin, origin.getBasicAttack());
 	}
 	
-	/**
-	 * Clears all moveable tile actors currently created,
-	 * removing them from the set and clearing their actor's
-	 */
-	private void clearSelectableTiles() {
-		for (Actor tile : selectableTiles) {
-			tile.remove();
-			tile.clear();
-		}
-		clearStrategySteps();
-		
-		selectableTiles.clear();
-	}
-	
+
 	/**
 	 * Handles the UI selection of an action tile, executing that action
 	 * @param a Action selected
 	 * TODO: Shouldn't be passing UIActionActor around, should be seperate
 	 */
 	public void handleUiSelection(UiActionActor a) {
-		clearSelectableTiles();
+		effects.clearEffects();
 		if (a.isSpecial()) {
 			if (a.other == SpecialAction.MOVE) {
 				displayMove(a.base);
@@ -227,7 +200,9 @@ public class RPGStage extends Stage {
 				endPlayerTurn();
 			}
 		} else {
-			displayAttack(a.base, a.attack);
+			if (!a.base.isExhausted()) {
+				displayAttack(a.base, a.attack);
+			}
 		}
 	}
 	
@@ -243,7 +218,7 @@ public class RPGStage extends Stage {
 		targets.add(new Vector2(3,1));
 		targets.add(new Vector2(4,1));
 		SortedMap<Integer, Vector2> checked2Tiles = Wayfinder.getPathToTiles(origin.getCell(),
-				targets, mapInfo, origin, new ActionProperties());
+				targets, RPG.getCurrentMapInfo(), origin, new ActionProperties());
 		
 		
 		Map<Vector2, Integer> checkedTiles = new HashMap<>();
@@ -257,21 +232,7 @@ public class RPGStage extends Stage {
 		
 		// test
 		
-		//Map<Vector2, Integer> checkedTiles = Wayfinder.getAllSelectableTiles2(origin, origin.getCell(),
-		//		a.range, mapInfo, a.p);
-		Texture attackableTexture = SelectableActionActor.getAttackableTexture();
-		
-		for (Vector2 position : checkedTiles.keySet()) {
-			SelectableActionActor newTile = new SelectableActionActor(
-					origin, attackableTexture, a);
-			newTile.setBounds(newTile.getX(), newTile.getY(),
-					attackableTexture.getWidth(), attackableTexture.getHeight());
-			newTile.setPosition(position.x * TILE_SIZE, position.y * TILE_SIZE);
-			newTile.setTouchable(Touchable.enabled);
-			selectableTiles.add(newTile);
-			addActor(newTile);
-					
-		}
+		effects.addAttackTiles(origin, checkedTiles, a);
 	}
 	
 	
@@ -280,20 +241,9 @@ public class RPGStage extends Stage {
 	 * @param origin the character to be moved
 	 */
 	private void displayMove(CharacterActor origin) {
-		Map<Vector2, Integer> checkedTiles = Wayfinder.getAllSelectableTiles2(origin, origin.getCell(), origin.getSpeedRemaining(), mapInfo,
+		Map<Vector2, Integer> checkedTiles = Wayfinder.getAllSelectableTiles2(origin, origin.getCell(), origin.getSpeedRemaining(), RPG.getCurrentMapInfo(),
 				new ActionProperties(EffectedByTerrain.RESPECT_TERRAIN, CanMoveThrough.PLAYER, CanSelect.TILE));   //Wayfinder.getAllMoveableTiles(target, mapInfo);
-		Texture moveableTexture = SelectableActionActor.getMoveableTexture();
-		
-		for (Vector2 position : checkedTiles.keySet()) {
-			SelectableActionActor a = new SelectableActionActor(
-					origin, moveableTexture, checkedTiles.get(position));
-			a.setBounds(a.getX(), a.getY(), moveableTexture.getWidth(), moveableTexture.getHeight());
-			a.setPosition(position.x * TILE_SIZE, position.y * TILE_SIZE);
-			a.setTouchable(Touchable.enabled);
-			selectableTiles.add(a);  // add to set so we can clear when no longer needed
-			addActor(a);
-		}
-		
+		effects.addMoveTiles(origin, checkedTiles);
 	}
 	
 	public void executeStep(CharacterActor actor, Step nextStep) {
@@ -303,11 +253,11 @@ public class RPGStage extends Stage {
 			Vector2 destination = ms.stepLocation;
 			actor.setPosition(destination.x * TILE_SIZE, destination.y * TILE_SIZE);
 			actor.moveSpaces(ms.cost);
-			clearDarkness();
+			darkness.clearDarkness(playerOp.getActors());
 			
 		} else if (nextStep instanceof ActionStep){
 			ActionStep as = (ActionStep) nextStep;
-			mapInfo.handleAttack(as.actionLocation, as.action);
+			RPG.getCurrentMapInfo().handleAttack(as.actionLocation, as.action);
 			actor.exhaustAction();
 		} else {
 			throw new IllegalArgumentException("step not supported");
@@ -316,36 +266,27 @@ public class RPGStage extends Stage {
 	
 	public void executeStrategy(CharacterActor actor, Strategy plan) {
 		System.out.println("beggining plan");
-		plan.reset();
-		interactableAnimationLock = parent.blockUserInput();
+		plan.setup();
+		interactableAnimationLock = RPG.blockUserInput();
+		RPG.setCurrentGameState(GameState.PLAYER_ANIMATION);
 		executingAction = true;
 		actionDeltaTime = 0f;
 	}
 	
 	@Override
 	public void act() {
-		if (playerFocus) {  // if a character has been selected, show movement icon
-			selected.setVisible(true);
-		} else {
-			selected.setVisible(false);
-		}
+		
+		// if a character is selected, show movement icon
+		effects.setCursorVisibility(playerFocus);
 		
 		
-		if (parent.userInputAllowed()) {
-			Vector2 mousePosition = screenToStageCoordinates(new Vector2(Gdx.input.getX(), Gdx.input.getY()));
-			Vector2 gridPosition = new Vector2((int) mousePosition.x/64, (int) mousePosition.y/64);
-			if (!gridPosition.epsilonEquals(lastCellMousedOver)) {
-				mouseOverGrid(gridPosition, super.hit(mousePosition.x, mousePosition.y, true)); 
-				lastCellMousedOver = gridPosition;
-			}
-		}
 		
-		// draw selection icon on the grid mouse is at
-		float x = Gdx.input.getX();
-		float y = Gdx.input.getY();
-		Vector2 drawPosition = screenToStageCoordinates(new Vector2(x, y)); //etLocationOnScreen(x, y);
-		selected.setPosition(snapToGrid(drawPosition.x), snapToGrid(drawPosition.y));
-		//selected.setPosition(x, y);
+		
+		Vector2 mousePosition = new Vector2(Gdx.input.getX(), Gdx.input.getY());
+		
+		effects.mouseOver(mousePosition);
+		
+		
 	}
 	
 	@Override
@@ -358,7 +299,10 @@ public class RPGStage extends Stage {
 				executeStep(focusedPlayer, consideredStrategy.getNextStep());
 				if (!consideredStrategy.hasNextStep()) {
 					executingAction = false;
-					parent.unblockUserInput(interactableAnimationLock);
+					if (RPG.getCurrentGameState() == GameState.PLAYER_ANIMATION) {
+						RPG.setCurrentGameState(GameState.PLAYER_TURN);
+					}
+					RPG.unblockUserInput(interactableAnimationLock);
 				} else {
 					actionDeltaTime -= .5;
 				}
@@ -370,7 +314,7 @@ public class RPGStage extends Stage {
 	
 	@Override
 	public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-		if (!parent.userInputAllowed()) { return false; }
+		if (!RPG.userInputAllowed()) { return false; }
 		
 		Vector2 stageCoords = screenToStageCoordinates(new Vector2(screenX, screenY));
 		Actor selected = super.hit(stageCoords.x, stageCoords.y, true); 
@@ -382,20 +326,20 @@ public class RPGStage extends Stage {
 		} else if (selected instanceof SelectableActionActor) {  // movement location selected, move to that location
 			SelectableActionActor sa = (SelectableActionActor) selected;
 			if (sa.isMove()) {
+				Strategy s = Operator.getMovePlan(
+						Wayfinder.getPathToTile(sa.getOrigin().getCell(), sa.getCell(),
+								RPG.getCurrentMapInfo(), sa.getOrigin(), ActionProperties.getDefaultMoveProperty()));
+				consideredStrategy = s;
 				executeStrategy(sa.getOrigin(), consideredStrategy); 
-				//focusedPlayer.setPosition(selected.getX(), selected.getY());
-				//focusedPlayer.setMovesLeft(sa.getCost());
-				//clearDarkness(20);
 			} else if (sa.isAttack()) {
-				mapInfo.handleAttack(new Vector2(((int) selected.getX())/64,
-						((int) selected.getY())/64), sa.getAttack());
-				focusedPlayer.exhaustAction();
+				RPG.getCurrentMapInfo().handleAttack(sa.getCell(), sa.getAttack());
+				sa.getOrigin().exhaustAction();
 			}
 		} else {	
 			removeUiActions();
 			playerFocus = false;
 		}
-		clearSelectableTiles();
+		effects.clearEffects();
 		return true;
 	}
 	
@@ -407,7 +351,7 @@ public class RPGStage extends Stage {
 	public void giveFocus(PlayerActor origin) {
 		playerFocus = true;
 		focusedPlayer = origin;
-		clearSelectableTiles();
+		effects.clearEffects();
 		displayMove(origin);
 		removeUiActions();
 		if (!origin.isExhausted())
@@ -420,7 +364,7 @@ public class RPGStage extends Stage {
 	 * actually on map/stage
 	 */
 	public void removeCharacter(CharacterActor c) {
-		mapInfo.removeCharacter(c);
+		RPG.getCurrentMapInfo().removeCharacter(c);
 		c.remove();
 		c.clear();
 	}
@@ -428,136 +372,10 @@ public class RPGStage extends Stage {
 	/**
 	 *  Converts from a screen position z (i.e. from mouse) and returns the closest grid square
 	 */
-	 private int snapToGrid(float z) {
+	 public static int snapToGrid(float z) {
 		return (int) z / TILE_SIZE * TILE_SIZE;
 	 }
-	
-	 /**
-	  * Removes darkness from all tiles inhabited by playerActors as well as all tiles within their
-	  * line of sight up to range tiles. Should be called on game start and every time a playerActor's 
-	  * position update
-	  * TODO: Add method for only updating one actor at once (save computation)
-	  * @param range number of tiles away to clear darkness from (if in actor line of sight)
-	  */
-	 private void clearDarkness() {
-		 for (CharacterActor p : playerOp.getActors()) {
-			 clearDarkness(p);
-		 }
-	 }
+}	
 	 
-	 private void clearDarkness(CharacterActor p) {
-		 int range = p.getVisionDistance();
-		 removeDarkness(p.getCell());
-		 Set<Vector2> toClear = Wayfinder.getAllSelectableTiles2(
-				 p, p.getCell(), range, mapInfo, new ActionProperties(
-						 EffectedByDarkness.IGNORE, EffectedByTerrain.IGNORE_TERRAIN,
-						 CanSelect.WALLS, CanSelect.ENEMY, CanSelect.TILE,
-						 CanMoveThrough.CHARACTER)).keySet();
-		 toClear.removeAll(Wayfinder.getAllOutOfSight(p.getCell(), toClear, mapInfo));
-		 for (Vector2 v : toClear) {
-			 removeDarkness(v);
-		 }
-	 }
-	 
-	 /**
-	  * Removes darkness tiles from a specific position, both visually and from mapInfo
-	  * @param position tile to remove darkness from
-	  * @return true if darkness tile was removed, false if not (wasn't darkness to begin with)
-	  */
-	 private boolean removeDarkness(Vector2 position) {
-		 if (darknessTiles.containsKey(position)) {
-			 mapInfo.removeDarkness(position);
-			 Actor d = darknessTiles.get(position);
-			 darknessTiles.remove(position);
-			 d.remove();
-			 d.clear();
-			 return true;
-		 }
-		 return false;
-	 }
-	 
-	 /**
-	  * Adds darkness tiles to the entire map, updating mapInfo and adding darkness tiles over
-	  * entire visual map
-	  * @param map
-	  */
-	 private void addDarknessToMap(MapInfo map) {
-		 Vector2 bounds = map.getMapSize();
-		 final Texture t = new Texture(Gdx.files.internal("data/MiscSprites/darkness.png"));
-		 for (int x = 0; x < bounds.x; x++) {
-			 for (int y = 0; y < bounds.y; y++) {
-				 Actor darkness = new Actor() {
-					 Texture texture = t;
-					
-					 @Override
-					 public void draw(Batch batch, float alpha) {
-						 batch.draw(texture,  getX(),  getY());
-					 }
-					
-				 };
-				 darkness.setBounds(darkness.getX(), darkness.getY(), t.getWidth(), t.getHeight());
-				 darkness.setPosition(x * TILE_SIZE, y * TILE_SIZE);
-				 darkness.setTouchable(Touchable.disabled);
-				 darknessTiles.put(new Vector2(x,y), darkness);
-				 addActor(darkness);
-				 map.addDarkness(); 
-			}
-		}
-	}
-	 
-	public void mouseOverGrid(Vector2 gridPosition, Actor mousedOver) {
-		clearStrategySteps();
-		if (mousedOver instanceof SelectableActionActor) {
-			SelectableActionActor sa = (SelectableActionActor) mousedOver;
-			if (sa.isMove()) {
-				Strategy pathToPosition = Operator.getMovePlan(
-						Wayfinder.getPathToTile(sa.getOrigin().getCell(),
-												gridPosition, mapInfo, sa.getOrigin(),
-												ActionProperties.getDefaultMoveProperty()));
-				displayStrategy(pathToPosition);
-				consideredStrategy = pathToPosition;
-			}
-		}
-	}
-	 
-	
-	public void clearStrategySteps() {
-		for (Actor step : stepActors) {
-			step.clear();
-			step.remove();
-		}
-		stepActors.clear();
-		if (!executingAction) 
-			consideredStrategy = null;
-	}
-	
-	public void displayStrategy(Strategy s) {
-		s.reset();
-		while (s.hasNextStep()) {
-			Step nextStep = s.getNextStep();
-			assert nextStep instanceof MoveStep;  // for now
-			Vector2 nextMove = ((MoveStep) nextStep).stepLocation;
-			
-			Actor newStepActor = new Actor() {
-				Texture t = stepTexture;
-				
-				 @Override
-				 public void draw(Batch batch, float alpha) {
-					 batch.draw(t,  getX(),  getY());
-				 }
-				
-			};
-			newStepActor.setBounds(newStepActor.getX(), newStepActor.getY(),
-					stepTexture.getWidth(), stepTexture.getHeight());
-			newStepActor.setPosition(nextMove.x * TILE_SIZE + TILE_SIZE/2-stepTexture.getWidth()/2, nextMove.y * TILE_SIZE + TILE_SIZE/2-stepTexture.getHeight()/2);
-			newStepActor.setTouchable(Touchable.disabled);
-			stepActors.add(newStepActor);
-			addActor(newStepActor);
-				
-		}
-		
-	
-	}
-}
 	
 	

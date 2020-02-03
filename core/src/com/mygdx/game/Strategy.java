@@ -5,15 +5,24 @@ import java.util.List;
 
 import com.badlogic.gdx.math.Vector2;
 
+/**
+ * Describes an ordered set of moves to be executed by a character
+ */
 public class Strategy {
 	public enum StepType {
 		MOVE, ATTACK;
 	}
 	
+	/**
+	 * A generic step that is one move in a strategy 
+	 */
 	interface Step { 
 		public StepType getType();
 	}
 	
+	/**
+	 * A step that describes moving to a new tile with an associated cost
+	 */
 	public static class MoveStep implements Step {
 		public Vector2 stepLocation;
 		public int cost;
@@ -37,6 +46,9 @@ public class Strategy {
 		}
 	}
 	
+	/**
+	 * A step representing an attack
+	 */
 	public static class ActionStep implements Step {
 		public Vector2 actionLocation;
 		public AttackAction action;
@@ -63,17 +75,29 @@ public class Strategy {
 	private boolean finished;
 	private int index;
 	
+	/**
+	 * Creates a new strategy
+	 */
 	public Strategy() {
 		steps = new ArrayList<>();
 		finished = false;
 		index = 0;
 	}
 	
+	/**
+	 * Adds a new step to this strategy
+	 * Does not work if strategy is finished
+	 * @param s Step to add
+	 */
 	public void addStep(Step s) {
 		if (!finished)
 			steps.add(s);
 	}
 	
+	/**
+	 * Sets this strategy in stone, preventing it from being modified.
+	 * To be called after strategy is finished and ready to be iterated over
+	 */
 	public void finishPlanning() {
 		finished = true;
 	}
@@ -91,11 +115,18 @@ public class Strategy {
 		return combined;
 	}
 	
-	// iterates when finished
+	/**
+	 * @return If there is another step in this strategy
+	 */
 	public boolean hasNextStep() {
 		return index < steps.size();
 	}
 	
+	/**
+	 * Requires that the strategy is finished via a finishPlanning call
+	 * @return the next step in the strategy if it exists
+	 * @throws OutOfBoundsException if hasNextStep() is not properly used
+	 */
 	public Step getNextStep() {
 		if (!finished) { return null; }
 		
@@ -103,7 +134,11 @@ public class Strategy {
 		return steps.get(index-1); 
 	}
 	
-	public void reset() {
+	/**
+	 * Sets up this iterator, must be called every time you want to start
+	 * a clean iteration
+	 */
+	public void setup() {
 		index = 0;
 	}
 	

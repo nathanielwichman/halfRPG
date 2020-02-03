@@ -7,10 +7,19 @@ import java.util.SortedMap;
 import com.badlogic.gdx.math.Vector2;
 import com.mygdx.game.Strategy.MoveStep;
 
+/**
+ * Operator handles logic and organization for a given team (AI or Player).
+ */
 public abstract class Operator {
 	private RPGStage stage;
 	private Set<CharacterActor> actors;	
 	
+	/**
+	 * Helper method - given a sorted map describing a series of moves in the format
+	 * cost -> move location returns a Strategy object describing the same set of moves
+	 * @param moves Series of moves to describe
+	 * @return Strategy describing moves
+	 */
 	public static Strategy getMovePlan(SortedMap<Integer, Vector2> moves) {
 		int lastCost = 0;
 		Strategy plan = new Strategy();
@@ -30,17 +39,30 @@ public abstract class Operator {
 		this.actors = new HashSet<>();
 	}
 	
+	/**
+	 * Add a CharacterActor to this Operator's team
+	 * Note: Make sure to add the correct actor type for each operator
+	 * (player or enemy)
+	 * @param a Actor to add
+	 */
 	public void addActor(CharacterActor a) {
 		RPG.getCurrentMapInfo().addCharacter(a);
 		actors.add((PlayerActor) a);
 	}
 	
+	/**
+	 * Refreshes the moves and abilities of all actors this operator controls
+	 * i.e. at the start of a new turn
+	 */
 	public void refreshAll() {
 		for (CharacterActor a : actors) {
 			a.refresh();
 		}
 	}
 	
+	/**
+	 * @return All actors this operator controls
+	 */
 	public Set<CharacterActor> getActors() {
 		return actors; 
 	}

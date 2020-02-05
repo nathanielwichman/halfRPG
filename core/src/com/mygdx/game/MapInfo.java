@@ -207,18 +207,18 @@ public class MapInfo {
 	 * 
 	 * @param location Location tile of the attack
 	 * @param a Info about the attack
-	 * @return True if a characterActor was at the given location to handle
-	 *      the attack, false otherwise
+	 * @return The attackCharacter targeted, or null if there was none
+	 *   at that position
 	 */
-	public boolean handleAttack(Vector2 location, AttackAction a) {
-		for (CharacterActor c : characters) {
+	public CharacterActor handleAttack(Vector2 location, AttackAction a) {
+		/*for (CharacterActor c : characters) {
 			if (c.getCell().equals(location)) {
 				int hp = c.handleAttack(a);
 				
-				return true;
+				return c;
 			}
-		}
-		return false;
+		}*/
+		return null;
 	}
 	
 	/**

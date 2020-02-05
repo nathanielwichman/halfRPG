@@ -59,6 +59,10 @@ public class ActionProperties {
 		}
 	}
 	
+	private void addProperty(Properties p) {
+		s.add(p);
+	}
+	
 	/**
 	 * @param properties A list of properties to query this instance about
 	 * @return True if this instance possesses one or more of the 
@@ -102,5 +106,14 @@ public class ActionProperties {
 	public static ActionProperties getDefaultMoveProperty() {
 		return new ActionProperties(CanSelect.TILE, EffectedByTerrain.RESPECT_TERRAIN);
 				
+	}
+	
+	public static ActionProperties getDefaultAttackProperties(boolean player) {
+		
+		if (player) {
+			return new ActionProperties(CanSelect.ENEMY, EffectedByTerrain.IGNORE_TERRAIN);
+		} else {
+			return new ActionProperties(CanSelect.PLAYER, EffectedByTerrain.IGNORE_TERRAIN);
+		}
 	}
 }

@@ -67,6 +67,7 @@ public class RPGStage extends Stage {
 	EffectsManager effects;
 	DarknessManager darkness;
 	PlayerOperator playerOp;
+	EnemyOperator enemyOp;
 	
 	Strategy consideredStrategy;
 	
@@ -88,6 +89,7 @@ public class RPGStage extends Stage {
 		
 		effects = new EffectsManager(this);
 		playerOp = new PlayerOperator(this);
+		enemyOp = new EnemyOperator(this);
 		
 		//selected = new SelectorActor();
 		//selected.setTouchable(Touchable.disabled);
@@ -111,7 +113,8 @@ public class RPGStage extends Stage {
 		a.setPosition(192, 64);
 		a.setTouchable(Touchable.enabled);
 		
-		mapInfo.addCharacter(a);
+		enemyOp.addActor(a);
+		
 		addActor(a);
 		
 		//mapInfo.addCharacter(moblin);
@@ -213,26 +216,10 @@ public class RPGStage extends Stage {
 	 * @param a The attack action
 	 */
 	private void displayAttack(CharacterActor origin, AttackAction a) {
-		//test
-		Set<Vector2> targets = new HashSet<>();
-		targets.add(new Vector2(3,1));
-		targets.add(new Vector2(4,1));
-		SortedMap<Integer, Vector2> checked2Tiles = Wayfinder.getPathToTiles(origin.getCell(),
-				targets, RPG.getCurrentMapInfo(), origin, new ActionProperties());
 		
-		
-		Map<Vector2, Integer> checkedTiles = new HashMap<>();
-		System.out.println(Operator.getMovePlan(checked2Tiles));
-		
-		for (Integer i : checked2Tiles.keySet()) {
-			Vector2 vect = checked2Tiles.get(i);
-			//System.out.println(i + ": " + i);
-			checkedTiles.put(vect,i);
-		}
-		
-		// test
-		
-		effects.addAttackTiles(origin, checkedTiles, a);
+		Map<Vector2, Integer> tiles = Wayfinder.getAllSelectableTiles2(
+				origin, origin.getCell(), a.range, RPG.getCurrentMapInfo(), ActionProperties.getDefaultAttackProperties(true));
+		effects.addAttackTiles(origin, tiles, a);
 	}
 	
 	
@@ -291,7 +278,10 @@ public class RPGStage extends Stage {
 	
 	@Override
 	public void act(float delta) {
-
+		for (Actor a : this.getActors()) {
+			a.act(delta);
+		}
+		
 		if (executingAction) {
 			//System.out.println("acting: " + actionDeltaTime);
 			actionDeltaTime += delta;
@@ -332,7 +322,12 @@ public class RPGStage extends Stage {
 				consideredStrategy = s;
 				executeStrategy(sa.getOrigin(), consideredStrategy); 
 			} else if (sa.isAttack()) {
-				RPG.getCurrentMapInfo().handleAttack(sa.getCell(), sa.getAttack());
+				CharacterActor target = enemyOp.getActorAtCell(sa.getCell());
+				if (target != null) {
+					String displayText = "" + target.handleAttack(sa.getAttack());
+					effects.displayDamage(target, displayText);
+				}
+				
 				sa.getOrigin().exhaustAction();
 			}
 		} else {	

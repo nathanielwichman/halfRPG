@@ -15,6 +15,10 @@ import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
+import com.badlogic.gdx.scenes.scene2d.actions.MoveToAction;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.mygdx.game.Strategy.MoveStep;
 import com.mygdx.game.Strategy.Step;
 
@@ -36,6 +40,7 @@ public class EffectsManager {
 	Set<SelectableActionActor> selectableTiles;  // overlay tiles for player selection
 	Set<Actor> stepTiles;  // overlay tiles for showing strategy
 	Map<EffectType, Texture> textureMap;  // save texture for each effect
+	
 	
 	public EffectsManager(RPGStage parent) {
 		this.parentStage = parent;
@@ -161,6 +166,25 @@ public class EffectsManager {
 		}
 	}
 	
+	public void displayDamage(CharacterActor target, String damage) {
+		Skin skin = new Skin(Gdx.files.internal("data/UiData/uiskin.json"));
+		
+		int textOffset = damage.length() * 5;
+		
+		int xOffset = RPGStage.TILE_SIZE / 2 - textOffset;
+		int yOffset = RPGStage.TILE_SIZE / 4 * 3;
+		
+		Label dmgNumber = new Label(damage, skin);
+		dmgNumber.setPosition(target.getX()+xOffset, target.getY() + yOffset);
+		
+		dmgNumber.addAction(Actions.moveBy(0f, yOffset/2f, 1.2f));
+		dmgNumber.addAction(Actions.delay(.6f, Actions.fadeOut(.55f)));
+		dmgNumber.addAction(Actions.delay(1.2f, Actions.removeActor()));
+		
+		parentStage.addActor(dmgNumber);
+	}
+	
+	
 	private void setupCursor() {
 		cursor = setupActor(textureMap.get(EffectType.CURSOR));
 		cursor.setTouchable(Touchable.disabled);
@@ -181,7 +205,7 @@ public class EffectsManager {
 				texture.getWidth(), texture.getHeight());
 		return genericActor;
 	}
- 	
+	
 	private void loadTextures() {
 		// Step texture
 		Pixmap pm = new Pixmap(26, 26, Format.RGBA8888);

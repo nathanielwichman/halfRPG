@@ -1,6 +1,8 @@
 package com.mygdx.game;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.Set;
 import java.util.SortedMap;
 
@@ -47,7 +49,7 @@ public abstract class Operator {
 	 */
 	public void addActor(CharacterActor a) {
 		RPG.getCurrentMapInfo().addCharacter(a);
-		actors.add((PlayerActor) a);
+		actors.add(a);
 	}
 	
 	/**
@@ -65,5 +67,14 @@ public abstract class Operator {
 	 */
 	public Set<CharacterActor> getActors() {
 		return actors; 
+	}
+	
+	public CharacterActor getActorAtCell(Vector2 cell) {
+		for (CharacterActor a : actors) {
+			if (a.getCell().epsilonEquals(cell)) {
+				return a;
+			}
+		}
+		return null;
 	}
 }

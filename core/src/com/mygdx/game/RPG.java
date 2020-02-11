@@ -22,6 +22,8 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
  * game logic is handled.
  */
 public class RPG implements Screen {
+	public static final boolean DEBUG = true;
+	
 	private halfRPG parent;
 	private RPGStage mainStage;
 	private UiStage uiStage;
@@ -72,7 +74,7 @@ public class RPG implements Screen {
 		ulockId = 0;
 		userInputLocks = new HashSet<>();
 		
-		
+		MapLoader.loadEnemies(mainStage, map);
 		// setup input passing.
 		multiplexer = new InputMultiplexer();
 		multiplexer.addProcessor(uiStage);

@@ -11,6 +11,19 @@ public class PlayerOperator extends Operator {
 		super(parent);
 		playerTurn = false;
 		focusedPlayer = null;
-		
+	}
+	
+	@Override
+	public void actorDeath(CharacterActor a) {
+		if (actors.contains(a)) {
+			actors.remove(a);
+		}
+	}
+	
+	@Override
+	public void beginTurn() {
+		for (CharacterActor a : actors) {
+			a.refresh();
+		}
 	}
 }

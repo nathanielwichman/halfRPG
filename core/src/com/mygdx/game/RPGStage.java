@@ -55,7 +55,7 @@ public class RPGStage extends Stage {
 	private int interactableAnimationLock;
 		
 	public static final int TILE_SIZE = 64;  // tile size in pixel, must match Tiled info
-	
+	public static final float ANIMATION_DELAY = .5f;
 	
 	//List<PlayerActor> playerActors;  // all actors the player controls
 	public boolean playerFocus;  // has a playable actor been focused on
@@ -69,7 +69,7 @@ public class RPGStage extends Stage {
 	PlayerOperator playerOp;
 	EnemyOperator enemyOp;
 	
-	Strategy consideredStrategy;
+	Strategy.Origin consideredStrategy;
 	
 	
 	/**
@@ -90,6 +90,8 @@ public class RPGStage extends Stage {
 		effects = new EffectsManager(this);
 		playerOp = new PlayerOperator(this);
 		enemyOp = new EnemyOperator(this);
+		playerOp.setOtherOp(enemyOp);
+		enemyOp.setOtherOp(playerOp);
 		
 		//selected = new SelectorActor();
 		//selected.setTouchable(Touchable.disabled);
@@ -108,14 +110,14 @@ public class RPGStage extends Stage {
 		moblin2.setPosition(128, 64);
 		moblin2.setTouchable(Touchable.enabled);
 		
-		CharacterActor a = new EnemyActor(this, CharacterInfo.getCharacterInfo("SkeletonPunchingBag"));
+		//CharacterActor a = new EnemyActor(this, CharacterInfo.getCharacterInfo("SkeletonPunchingBag"));
 		//CharacterActor a = new CharacterActor(CharacterInfo.getCharacterInfo("SkeletonPunchingBag"));
-		a.setPosition(192, 64);
-		a.setTouchable(Touchable.enabled);
+		//a.setPosition(192, 64);
+		//a.setTouchable(Touchable.disabled);
 		
-		enemyOp.addActor(a);
+		//enemyOp.addActor(a);
 		
-		addActor(a);
+		//addActor(a);
 		
 		//mapInfo.addCharacter(moblin);
 		//playerActors.add(moblin);
@@ -140,6 +142,18 @@ public class RPGStage extends Stage {
 		
 	}
 	
+	public void addCharacter(CharacterActor actor, boolean player, int xCell, int yCell) {
+		actor.setPosition(xCell * TILE_SIZE, yCell * TILE_SIZE);
+		if (player) {
+			playerOp.addActor(actor);
+			actor.setTouchable(Touchable.enabled);
+		} else {
+			enemyOp.addActor(actor);
+			actor.setTouchable(Touchable.disabled);
+		}
+		addActor(actor);
+	}
+	
 	/**
 	 * Ends the player's turn starting the enemies (NPC) turns
 	 * Should probably be moved to RPG
@@ -152,14 +166,26 @@ public class RPGStage extends Stage {
 		parent.passToUi(UiAction.TOGGLE_VISIBILITY, "enemyTurn");
 		RPG.setCurrentGameState(GameState.ENEMY_TURN);
 		interactableTurnLock = RPG.blockUserInput();
-		Timer t = new Timer();
-		t.scheduleTask(new Task() {
-			@Override
-			public void run() {
-				endEnemyTurn();
-			}
-		}, (float)Math.random() * 5);
-				
+		
+		enemyOp.beginTurn();
+		enemyTurn();
+		
+	}
+	
+	public void enemyTurn() {
+
+		Strategy.Origin enemyStrat = enemyOp.getStrategy();
+		//System.out.println(enemyOp.getActors());
+		//System.out.println(enemyStrat.strat);
+		
+		if (enemyStrat != null) {
+			executeStrategy(enemyStrat.origin, enemyStrat.strat);
+			
+		} else {
+			endEnemyTurn();
+		}
+		
+		
 	}
 	
 	/**
@@ -167,7 +193,7 @@ public class RPGStage extends Stage {
 	 * Should be moved to RPG
 	 */
 	public void endEnemyTurn() {
-		playerOp.refreshAll();
+		playerOp.beginTurn();
 		RPG.unblockUserInput(interactableTurnLock);
 		RPG.setCurrentGameState(GameState.PLAYER_TURN);
 		parent.passToUi(UiAction.TOGGLE_VISIBILITY, "enemyTurn");
@@ -234,30 +260,59 @@ public class RPGStage extends Stage {
 	}
 	
 	public void executeStep(CharacterActor actor, Step nextStep) {
-		System.out.println("executing step");
+		playerOp.executingStep(actor, nextStep);
+		enemyOp.executingStep(actor, nextStep);
 		if (nextStep instanceof MoveStep) {
 			MoveStep ms = (MoveStep) nextStep;
 			Vector2 destination = ms.stepLocation;
 			actor.setPosition(destination.x * TILE_SIZE, destination.y * TILE_SIZE);
 			actor.moveSpaces(ms.cost);
-			darkness.clearDarkness(playerOp.getActors());
+			if (actor instanceof PlayerActor) {
+				darkness.clearDarkness(actor);
+			}
 			
 		} else if (nextStep instanceof ActionStep){
 			ActionStep as = (ActionStep) nextStep;
-			RPG.getCurrentMapInfo().handleAttack(as.actionLocation, as.action);
+			// allow general attacks
+			CharacterActor target = as.target;
+						
+			if (target != null) {
+				String displayText = "";
+				if (target instanceof EnemyActor) {
+					displayText += enemyOp.handleAttack(target, as.action);
+				} else {
+					displayText += playerOp.handleAttack(target, as.action);
+				}
+				effects.displayDamage(target, displayText);
+			}
+			
 			actor.exhaustAction();
+			
 		} else {
 			throw new IllegalArgumentException("step not supported");
 		}
 	}
 	
 	public void executeStrategy(CharacterActor actor, Strategy plan) {
-		System.out.println("beggining plan");
 		plan.setup();
-		interactableAnimationLock = RPG.blockUserInput();
-		RPG.setCurrentGameState(GameState.PLAYER_ANIMATION);
+		
+		if (!plan.hasNextStep()) { 
+			if (RPG.getCurrentGameState() == GameState.ENEMY_TURN) {
+				enemyTurn();
+			}
+			return;
+		}
+		
+		consideredStrategy = new Strategy.Origin(plan, actor);
+		if (RPG.getCurrentGameState() == GameState.PLAYER_TURN) {
+			interactableAnimationLock = RPG.blockUserInput();
+			RPG.setCurrentGameState(GameState.PLAYER_ANIMATION);
+		} else if (RPG.getCurrentGameState() == GameState.ENEMY_TURN){
+			RPG.setCurrentGameState(GameState.ENEMY_ANIMATION);
+		}
+		
 		executingAction = true;
-		actionDeltaTime = 0f;
+		actionDeltaTime = ANIMATION_DELAY;
 	}
 	
 	@Override
@@ -285,16 +340,20 @@ public class RPGStage extends Stage {
 		if (executingAction) {
 			//System.out.println("acting: " + actionDeltaTime);
 			actionDeltaTime += delta;
-			if (actionDeltaTime > .5) {
-				executeStep(focusedPlayer, consideredStrategy.getNextStep());
-				if (!consideredStrategy.hasNextStep()) {
+			if (actionDeltaTime > ANIMATION_DELAY) {
+				executeStep(consideredStrategy.origin, consideredStrategy.strat.getNextStep());
+				if (!consideredStrategy.strat.hasNextStep()) {
 					executingAction = false;
 					if (RPG.getCurrentGameState() == GameState.PLAYER_ANIMATION) {
 						RPG.setCurrentGameState(GameState.PLAYER_TURN);
+						RPG.unblockUserInput(interactableAnimationLock);
+					} else if (RPG.getCurrentGameState() == GameState.ENEMY_ANIMATION) {
+						RPG.setCurrentGameState(GameState.ENEMY_TURN);
+						enemyTurn();
 					}
-					RPG.unblockUserInput(interactableAnimationLock);
+					
 				} else {
-					actionDeltaTime -= .5;
+					actionDeltaTime -= ANIMATION_DELAY;
 				}
 			}
 		}
@@ -316,19 +375,14 @@ public class RPGStage extends Stage {
 		} else if (selected instanceof SelectableActionActor) {  // movement location selected, move to that location
 			SelectableActionActor sa = (SelectableActionActor) selected;
 			if (sa.isMove()) {
-				Strategy s = Operator.getMovePlan(
-						Wayfinder.getPathToTile(sa.getOrigin().getCell(), sa.getCell(),
-								RPG.getCurrentMapInfo(), sa.getOrigin(), ActionProperties.getDefaultMoveProperty()));
-				consideredStrategy = s;
-				executeStrategy(sa.getOrigin(), consideredStrategy); 
+				Strategy s = Wayfinder.getStrategyToTile(sa.getOrigin().getCell(), sa.getCell(),
+								sa.getOrigin(), ActionProperties.getDefaultMoveProperty(true));
+				executeStrategy(sa.getOrigin(), s); 
 			} else if (sa.isAttack()) {
-				CharacterActor target = enemyOp.getActorAtCell(sa.getCell());
-				if (target != null) {
-					String displayText = "" + target.handleAttack(sa.getAttack());
-					effects.displayDamage(target, displayText);
-				}
-				
-				sa.getOrigin().exhaustAction();
+				Strategy s = new Strategy();
+				CharacterActor target = RPG.getCurrentMapInfo().characterAtPosition(sa.getCell());
+				s.addStep(new ActionStep(target, sa.getAttack()));
+				executeStrategy(sa.getOrigin(), s);
 			}
 		} else {	
 			removeUiActions();

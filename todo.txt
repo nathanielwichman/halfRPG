@@ -1,0 +1,28 @@
+RPG
+
+New Features:
+	Multiple abilities (requires refactoring out basic attack)
+		> for enemy as well as players
+	Selectable Area abilities (like cone)
+	* AOE abilities
+	* Ambush
+
+	Character Class
+		3 class with 2 abilties each
+	Stats
+
+	Turning: have 4 sprites and determine direction to move
+
+	Goal manager: determine when we lose/win
+
+QOL:
+
+	Logger that can get sent all events
+
+	Clicking speeds up animation
+
+Fixes/refactoring:
+	Make Operator calls to all ai each step
+	
+	Fix UI
+

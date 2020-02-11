@@ -45,6 +45,10 @@ public class ActionProperties {
 		IGNORE;
 	}
 	
+	public enum RequireLineOfSight implements Properties {
+		REQUIRE, IGNORE;
+	}
+	
 	// Instance list of properties
 	public Set<Properties> s;
 	
@@ -59,8 +63,9 @@ public class ActionProperties {
 		}
 	}
 	
-	private void addProperty(Properties p) {
+	public ActionProperties addProperty(Properties p) {
 		s.add(p);
+		return this;
 	}
 	
 	/**
@@ -103,17 +108,23 @@ public class ActionProperties {
 		return true;
 	}
 	
-	public static ActionProperties getDefaultMoveProperty() {
-		return new ActionProperties(CanSelect.TILE, EffectedByTerrain.RESPECT_TERRAIN);
-				
+	public static ActionProperties getDefaultMoveProperty(boolean player) {
+		if (player) {
+			return new ActionProperties(CanSelect.TILE, EffectedByTerrain.RESPECT_TERRAIN);
+		} else {
+			return new ActionProperties(CanSelect.TILE, EffectedByTerrain.RESPECT_TERRAIN,
+					EffectedByDarkness.IGNORE);
+		}
 	}
 	
 	public static ActionProperties getDefaultAttackProperties(boolean player) {
 		
 		if (player) {
-			return new ActionProperties(CanSelect.ENEMY, EffectedByTerrain.IGNORE_TERRAIN);
+			return new ActionProperties(CanSelect.ENEMY, EffectedByTerrain.IGNORE_TERRAIN,
+					RequireLineOfSight.REQUIRE);
 		} else {
-			return new ActionProperties(CanSelect.PLAYER, EffectedByTerrain.IGNORE_TERRAIN);
+			return new ActionProperties(CanSelect.PLAYER, EffectedByTerrain.IGNORE_TERRAIN,
+					RequireLineOfSight.REQUIRE, EffectedByDarkness.IGNORE);
 		}
 	}
 }

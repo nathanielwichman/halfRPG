@@ -22,6 +22,7 @@ import com.mygdx.game.ActionProperties.EffectedByTerrain;
  * MapInfo
  */
 public class DarknessManager {
+	private final Texture darknessTexture;
 	Map<Vector2, Actor> darknessTiles;
 	RPGStage parentStage;
 	
@@ -32,6 +33,11 @@ public class DarknessManager {
 	public DarknessManager(RPGStage parent) {
 		this.parentStage = parent;
 		darknessTiles = new HashMap<>();
+		if (RPG.DEBUG) {
+			darknessTexture = new Texture(Gdx.files.internal("data/MiscSprites/darknessDebug.png"));
+		} else {
+			darknessTexture = new Texture(Gdx.files.internal("data/MiscSprites/darkness.png"));
+		}
 	}
 	
 	/**
@@ -87,11 +93,11 @@ public class DarknessManager {
 	  */
 	 public void addDarknessToMap() {
 		 Vector2 bounds = RPG.getCurrentMapInfo().getMapSize();
-		 final Texture t = new Texture(Gdx.files.internal("data/MiscSprites/darkness.png"));
+		 
 		 for (int x = 0; x < bounds.x; x++) {
 			 for (int y = 0; y < bounds.y; y++) {
 				 Actor darkness = new Actor() {
-					 Texture texture = t;
+					 Texture texture = darknessTexture;
 					
 					 @Override
 					 public void draw(Batch batch, float alpha) {
@@ -99,7 +105,8 @@ public class DarknessManager {
 					 }
 					
 				 };
-				 darkness.setBounds(darkness.getX(), darkness.getY(), t.getWidth(), t.getHeight());
+				 darkness.setBounds(darkness.getX(), darkness.getY(),
+						 darknessTexture.getWidth(), darknessTexture.getHeight());
 				 darkness.setPosition(x * RPGStage.TILE_SIZE, y * RPGStage.TILE_SIZE);
 				 darkness.setTouchable(Touchable.disabled);
 				 darknessTiles.put(new Vector2(x,y), darkness);

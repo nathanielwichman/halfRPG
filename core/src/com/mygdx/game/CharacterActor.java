@@ -189,4 +189,15 @@ public class CharacterActor extends Actor {
 		
 	}
 	
+	@Override
+	public String toString() {
+		if (this instanceof PlayerActor) {
+			return this.name + " (p)";
+		} else if (this instanceof EnemyActor) {
+			return this.name + " (e)";
+		} else {
+			return this.name;
+		}
+	}
+	
 }

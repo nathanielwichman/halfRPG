@@ -129,7 +129,8 @@ public class CharacterInfo {
 				return i;
 			case "SkeletonPunchingBag":
 				CharacterInfo iv = new  CharacterInfo(new Texture(Gdx.files.internal("data/CharacterSprites/SkeletonPunchingBag.png")),
-						"SkeletonPunchingBag", 0, 5);
+						"SkeletonPunchingBag", 6, 5);
+				iv.addActions(AttackAction.getAttack("Slash"));
 				return iv;
 		}
 		return null;

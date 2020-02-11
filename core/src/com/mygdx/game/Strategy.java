@@ -8,7 +8,17 @@ import com.badlogic.gdx.math.Vector2;
 /**
  * Describes an ordered set of moves to be executed by a character
  */
-public class Strategy {
+public class Strategy implements Comparable {
+	public static class Origin {
+		public Strategy strat;
+		public CharacterActor origin;
+		
+		public Origin(Strategy s, CharacterActor origin) {
+			this.origin = origin;
+			this.strat = s;
+		}
+	}
+	
 	public enum StepType {
 		MOVE, ATTACK;
 	}
@@ -50,16 +60,19 @@ public class Strategy {
 	 * A step representing an attack
 	 */
 	public static class ActionStep implements Step {
-		public Vector2 actionLocation;
+		public Vector2 attackLocation;
+		public CharacterActor target;
 		public AttackAction action;
 		
-		public ActionStep(Vector2 location, AttackAction a) {
-			actionLocation = location;
+		public ActionStep(CharacterActor target, AttackAction a) {
+			this.attackLocation = target.getCell();
+			this.target = target;
 			action = a;
 		}
 		
-		public ActionStep(int x, int y, AttackAction a) {
-			this(new Vector2(x,y), a);
+		public ActionStep(Vector2 targetLocation, AttackAction a) {
+			this.attackLocation = targetLocation;
+			this.action = a;
 		}
 		
 		public StepType getType() {
@@ -67,13 +80,18 @@ public class Strategy {
 		}
 		
 		public String toString() {
-			return "use attack " + action.attackName + " at " + actionLocation;
+			if (target != null) {
+				return "use attack " + action.attackName + " on " + target;
+			} else {
+				return "use attack " + action.attackName + " at " + attackLocation;
+			}
 		}
 	}
 	
 	private List<Step> steps;
 	private boolean finished;
 	private int index;
+	private int points;
 	
 	/**
 	 * Creates a new strategy
@@ -82,6 +100,18 @@ public class Strategy {
 		steps = new ArrayList<>();
 		finished = false;
 		index = 0;
+		points = 0;
+	}
+	
+	/**
+	 * Creates a new strategy with the given steps
+	 * @param steps = List of ordered steps
+	 */
+	public Strategy(List<Step> steps) {
+		steps = new ArrayList<>(steps);
+		finished = false;
+		index = 0;
+		points = 0;
 	}
 	
 	/**
@@ -95,13 +125,47 @@ public class Strategy {
 	}
 	
 	/**
-	 * Sets this strategy in stone, preventing it from being modified.
-	 * To be called after strategy is finished and ready to be iterated over
+	 * @return Number of steps currently in strategy
 	 */
-	public void finishPlanning() {
-		finished = true;
+	public int getNumSteps() {
+		return steps.size();
 	}
 	
+	public int getPoints() {
+		return points;
+	}
+	
+	public void addCost(int v) {
+		if (!finished) {
+			points -= v;
+		}
+	}
+	
+	public void addPoints(int v) {
+		if (!finished) {
+			points += v;
+		}
+	}
+	
+	public void setPoints(int v) {
+		if (!finished) {
+			points = v;
+		}
+	}
+	
+	/**
+	 * @return Total cost of all move steps in this strategy
+	 */
+	public int getTotalMoveCost() {
+		int cost = 0;
+		for (Step s : steps) {
+			if (s instanceof MoveStep) {
+				cost += ((MoveStep) s).cost;
+			}
+		}
+		return cost;
+	}
+
 	public String toString() {
 		String combined = "";
 		if (steps.size() == 0) {
@@ -112,7 +176,7 @@ public class Strategy {
 			combined += steps.get(i).toString() + ", ";
 		}
 		combined += steps.get(steps.size()-1).toString();		
-		return combined;
+		return combined + " <" + points + ">";
 	}
 	
 	/**
@@ -140,6 +204,44 @@ public class Strategy {
 	 */
 	public void setup() {
 		index = 0;
+		finished = true;
+	}
+	
+	public Step getLastStep() {
+		if (steps.isEmpty()) {
+			return null;
+		} else {
+			return steps.get(steps.size()-1);
+		}
+	}
+	
+	public boolean cullToSpeed(int remainingSpeed) {
+		int totalCost = 0;
+		
+		if (!finished) {
+			for (int i = 0; i < steps.size(); i++) {
+				Step s = steps.get(i);
+				if (s instanceof MoveStep) {
+					totalCost += ((MoveStep) s).cost;
+					if (totalCost > remainingSpeed) {
+						while (steps.size() > i) {
+							steps.remove(i);
+						}	
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public int compareTo(Object o) {
+		if (o instanceof Strategy) {
+			Strategy other = (Strategy) o;
+			return other.points - this.points;
+		}
+		return 0;
 	}
 	
 	

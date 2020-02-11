@@ -109,10 +109,9 @@ public class EffectsManager {
 			if (mousedOver instanceof SelectableActionActor) {
 				SelectableActionActor sa = (SelectableActionActor) mousedOver;
 				if (sa.isMove()) {
-					Strategy pathToPosition = Operator.getMovePlan(
-							Wayfinder.getPathToTile(sa.getOrigin().getCell(),
-													gridPosition, RPG.getCurrentMapInfo(), sa.getOrigin(),
-													ActionProperties.getDefaultMoveProperty()));
+					Strategy pathToPosition = Wayfinder.getStrategyToTile(sa.getOrigin().getCell(),
+													gridPosition,  sa.getOrigin(),
+													ActionProperties.getDefaultMoveProperty(true));
 					displayStrategy(pathToPosition);
 				}
 			}

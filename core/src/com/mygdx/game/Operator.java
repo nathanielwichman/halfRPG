@@ -8,37 +8,43 @@ import java.util.SortedMap;
 
 import com.badlogic.gdx.math.Vector2;
 import com.mygdx.game.Strategy.MoveStep;
+import com.mygdx.game.Strategy.Step;
 
 /**
  * Operator handles logic and organization for a given team (AI or Player).
  */
 public abstract class Operator {
-	private RPGStage stage;
-	private Set<CharacterActor> actors;	
-	
-	/**
-	 * Helper method - given a sorted map describing a series of moves in the format
-	 * cost -> move location returns a Strategy object describing the same set of moves
-	 * @param moves Series of moves to describe
-	 * @return Strategy describing moves
-	 */
-	public static Strategy getMovePlan(SortedMap<Integer, Vector2> moves) {
-		int lastCost = 0;
-		Strategy plan = new Strategy();
-		for (Integer cost : moves.keySet()) {
-			assert cost > lastCost;
-			if (cost == 0) { continue; }  // assume at origin
-			Vector2 v = moves.get(cost);
-			plan.addStep(new MoveStep(v,cost-lastCost));
-			lastCost = cost;
-		}
-		plan.finishPlanning();
-		return plan;
-	}
+	protected Operator otherOp;
+	protected RPGStage stage;
+	protected Set<CharacterActor> actors;	
 	
 	public Operator(RPGStage stage) {
 		this.stage = stage;
 		this.actors = new HashSet<>();
+	}
+	
+	public void setOtherOp(Operator other) {
+		otherOp = other;
+	}
+	
+	public abstract void beginTurn();
+	
+	public abstract void actorDeath(CharacterActor a);
+	
+	// return interupt
+	public boolean executingStep(CharacterActor actor, Step s) { return false; }
+	
+	public int handleAttack(CharacterActor a, AttackAction p) {
+		if (actors.contains(a)) {
+			int dmg = a.handleAttack(p);
+			if (a.getHealth() == 0) {
+				System.out.println("enemy dead");
+				this.actorDeath(a);
+				otherOp.actorDeath(a);
+			}
+			return dmg;
+		}
+		return -1;
 	}
 	
 	/**
@@ -50,6 +56,14 @@ public abstract class Operator {
 	public void addActor(CharacterActor a) {
 		RPG.getCurrentMapInfo().addCharacter(a);
 		actors.add(a);
+	}
+	
+	public boolean removeActor(CharacterActor a) {
+		if (actors.contains(a)) {
+			actors.remove(a);
+			return true;
+		}
+		return false;
 	}
 	
 	/**

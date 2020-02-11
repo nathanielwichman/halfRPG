@@ -17,6 +17,8 @@ import com.mygdx.game.ActionProperties.CanSelect;
 import com.mygdx.game.ActionProperties.EffectedByDarkness;
 import com.mygdx.game.ActionProperties.EffectedByTerrain;
 import com.mygdx.game.ActionProperties.Properties;
+import com.mygdx.game.ActionProperties.RequireLineOfSight;
+import com.mygdx.game.Strategy.MoveStep;
 
 
 /**
@@ -204,6 +206,33 @@ public class Wayfinder {
 		return getPathToTiles(origin, targetSet, map, actor, p);
 	}
 	
+	public static Strategy getStrategyToTile(Vector2 origin, Vector2 target,
+			CharacterActor actor, ActionProperties p) {
+		Set<Vector2> targets = new HashSet<>();
+		targets.add(target);
+		return getStrategyToTiles(origin, targets, actor, p);
+	}
+	
+	public static Strategy getStrategyToTiles(Vector2 origin, Set<Vector2> targets,
+			CharacterActor actor, ActionProperties p) {
+		SortedMap<Integer, Vector2> moves = getPathToTiles(origin, targets, RPG.getCurrentMapInfo(), actor, p);
+		
+		if (moves == null) {
+			return null;
+		}
+		
+		int lastCost = 0;
+		Strategy plan = new Strategy();
+		for (Integer cost : moves.keySet()) {
+			assert cost > lastCost;
+			if (cost == 0) { continue; }  // assume at origin
+			Vector2 v = moves.get(cost);
+			plan.addStep(new MoveStep(v,cost-lastCost));
+			lastCost = cost;
+		}
+		
+		return plan;
+	}
 	
 	/**
 	 * Uses A* search to find the shortest path to one of many tile.
@@ -217,7 +246,7 @@ public class Wayfinder {
 	 */
 	public static SortedMap<Integer, Vector2> getPathToTiles(Vector2 origin, Set<Vector2> targets,
 			MapInfo map, CharacterActor actor, ActionProperties p) {
-		System.out.println("pathfinding");
+		
 		PriorityQueue<PathNode> toExplore = new PriorityQueue<>();
 		Set<Vector2> exploredNodes = new HashSet<>();
 		
@@ -228,7 +257,7 @@ public class Wayfinder {
 		while (!toExplore.isEmpty()) {
 			PathNode nodeToCheck = toExplore.remove();
 			exploredNodes.add(nodeToCheck.node);
-			System.out.println(nodeToCheck.node + ": " + (nodeToCheck.movesLeft+nodeToCheck.heuristicCost)+ " - " + nodeToCheck.diagCount);
+			//System.out.println(nodeToCheck.node + ": " + (nodeToCheck.movesLeft+nodeToCheck.heuristicCost)+ " - " + nodeToCheck.diagCount);
 			if (targets.contains(nodeToCheck.node)) {
 				return nodeToCheck.getPath();
 			}
@@ -247,7 +276,7 @@ public class Wayfinder {
 		}
 		return null;
 	}
-		
+	
 	/**
 	 * Can the given tile be explored
 	 * @param position Position of tile to explore
@@ -323,6 +352,24 @@ public class Wayfinder {
 		}
 	}
 	
+	public static boolean canMoveTo(Vector2 position, ActionProperties p) {
+		Map<Vector2, CharacterActor> charMap = RPG.getCurrentMapInfo().getCharacters();
+		TileInfo t = RPG.getCurrentMapInfo().getTileInfo(position);
+		if (p.is(CanSelect.TILE) && !t.isWall() && !charMap.containsKey(position)) {
+			return true;
+		} else if (p.is(CanSelect.WALLS) && t.isWall()) {
+			return true;
+		} else if (p.is(CanSelect.CHARACTER) && charMap.containsKey(position)) {
+			return true;
+		} else if (p.is(CanSelect.ENEMY) && charMap.containsKey(position) && charMap.get(position) instanceof EnemyActor) {
+			return true;
+		} else if (p.is(CanSelect.PLAYER) && charMap.containsKey(position) && charMap.get(position) instanceof PlayerActor) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
 	/**
 	 * Helper method to get all valid adjacent tiles to explore 
 	 * 
@@ -349,9 +396,41 @@ public class Wayfinder {
 		return tilesToCheck;
 	}
 	
-	public static Set<Vector2> getAdjacentTiles(Vector2 baseTile, MapInfo map, int distance) {
+	
+	public static boolean canReach(Vector2 baseTile, Vector2 target, int range, ActionProperties p) {
+		if (baseTile.epsilonEquals(target)) { return true; }
+		
+		Set<Vector2> adjTiles = getAdjacentTiles(baseTile, range, p);
+		
+		if (adjTiles.contains(target)) {
+			if (p.is(RequireLineOfSight.REQUIRE)) {
+				return Wayfinder.traceLine(baseTile, target, RPG.getCurrentMapInfo());
+			} else {
+				return true;
+			}
+		}
+		return false;
+		
+	}
+	
+	public static Set<Vector2> getAdjacentTiles(Vector2 baseTile, int distance, ActionProperties p) {
+		Set<Vector2> s = getAdjacentTiles(baseTile, distance);
+		System.out.println(s);
+		Iterator<Vector2> spacesIt = s.iterator();
+		while (spacesIt.hasNext()) {
+			Vector2 v = spacesIt.next();
+			if (!Wayfinder.canMoveTo(v, p)) {
+				spacesIt.remove();
+			}
+		}
+
+		return s;
+	}
+	
+	
+	public static Set<Vector2> getAdjacentTiles(Vector2 baseTile, int distance) {
 		Set<Vector2> tilesToCheck = new HashSet<>();
-		Vector2 bounds = map.getMapSize();
+		Vector2 bounds = RPG.getCurrentMapInfo().getMapSize();
 		for (int x = -distance; x <= distance; x++) {
 			for (int y = -distance; y <= distance; y++) {
 				Vector2 tileToCheck = new Vector2(baseTile.x + x, baseTile.y + y);
@@ -411,7 +490,7 @@ public class Wayfinder {
 	 * @param map MapInfo describing the map
 	 * @return true if line of sight is unobstructed, false otherwise
 	 */
-	private static boolean traceLine(Vector2 a, Vector2 b, MapInfo map) {
+	public static boolean traceLine(Vector2 a, Vector2 b, MapInfo map) {
 		Set<Vector2> checkedTiles = new HashSet<>();  // to prevent unnecessary recompute, idk if worth
 		
 		// get true center tile positions
@@ -446,6 +525,8 @@ public class Wayfinder {
 		}
 		return true;
 	}
+	
+	
 	
 	/**
 	 * Checks if a pixel corresponds to a wall tile. Does some fuzzing so if the pixel
